@@ -1,0 +1,269 @@
+// Basement Sprint 1 — Prisma schema.
+//
+// WatermelonDB delta-sync contract baked into every synced model:
+//   - id          : client-generated UUIDv7 string PK (idempotent push).
+//   - createdAt   : set once on insert.
+//   - updatedAt   : bumped by sync_touch() trigger on every write.
+//   - deletedAt   : soft delete; sync emits a "deleted" change downstream.
+//   - serverRev   : monotonic BigInt assigned by sync_touch(), used as the
+//                   pull cursor (beats wall-clock updatedAt under skew).
+//
+// Indexes (updatedAt,id) and (serverRev) support pull-pagination.
+// PostGIS columns / GIST indexes / triggers / append-only rules live in
+// prisma/migrations/0001_init/migration.sql — Prisma can't express them.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis]
+}
+
+// ---------- BarGrid (geospatial nodes) ----------
+
+enum BarGridStatus {
+  IDLE
+  ACTIVE
+  FAULT
+  OFFLINE
+  RAIN_DELAYED
+}
+
+model BarGridNode {
+  id        String        @id
+  gridX     Int
+  gridY     Int
+  // PostGIS geography(Point,4326). Migration alters the raw column type after Prisma creates it.
+  location  Unsupported("geography(Point, 4326)")
+  status    BarGridStatus @default(IDLE)
+  heatValue Float         @default(0)
+  metadata  Json          @default("{}")
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+  deletedAt DateTime?
+  serverRev BigInt    @default(0)
+
+  smartTags SmartTag[]
+
+  @@unique([gridX, gridY])
+  @@index([updatedAt, id])
+  @@index([serverRev])
+  @@index([deletedAt])
+  @@map("bar_grid_nodes")
+}
+
+model SmartTag {
+  id          String       @id
+  nodeId      String?
+  node        BarGridNode? @relation(fields: [nodeId], references: [id])
+  externalRef String       @unique
+  geofenceWkt String?
+  lastSeenAt  DateTime?
+  battery     Int?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+  deletedAt DateTime?
+  serverRev BigInt    @default(0)
+
+  alarms GeofenceAlarm[]
+
+  @@index([updatedAt, id])
+  @@index([serverRev])
+  @@map("smart_tags")
+}
+
+// ---------- Geofence alarms (Sprint 5) ----------
+
+enum AlarmReason {
+  OUT_OF_GEOFENCE
+  STALE_HEARTBEAT
+  LOW_BATTERY
+}
+
+model GeofenceAlarm {
+  id         String      @id
+  tagId      String
+  tag        SmartTag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  lat        Float
+  lng        Float
+  reason     AlarmReason
+  resolvedAt DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+  deletedAt DateTime?
+  serverRev BigInt    @default(0)
+
+  @@index([tagId, createdAt])
+  @@index([resolvedAt])
+  @@index([updatedAt, id])
+  @@index([serverRev])
+  @@map("geofence_alarms")
+}
+
+// ---------- Users (Sprint 3 — JWT auth) ----------
+
+enum UserRole {
+  ADMIN
+  OPERATOR
+  VIEWER
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  displayName  String?
+  role         UserRole @default(VIEWER)
+  disabled     Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  lastLogin DateTime?
+
+  @@map("users")
+}
+
+// ---------- Inventory ----------
+
+model InventoryItem {
+  id          String  @id
+  sku         String  @unique
+  name        String
+  quantity    Int     @default(0)
+  unit        String  @default("ea")
+  binLocation String?
+  mediaKey    String?
+  attributes  Json    @default("{}")
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+  deletedAt DateTime?
+  serverRev BigInt    @default(0)
+
+  movements InventoryMovement[]
+
+  @@index([updatedAt, id])
+  @@index([serverRev])
+  @@map("inventory_items")
+}
+
+model InventoryMovement {
+  id         String        @id
+  itemId     String
+  item       InventoryItem @relation(fields: [itemId], references: [id])
+  delta      Int
+  reason     String
+  actorId    String?
+  occurredAt DateTime      @default(now())
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+  deletedAt DateTime?
+  serverRev BigInt    @default(0)
+
+  @@index([itemId, occurredAt])
+  @@index([updatedAt, id])
+  @@index([serverRev])
+  @@map("inventory_movements")
+}
+
+// ---------- AuditLogs (append-only, hash-chained) ----------
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  SAFETY_OVERRIDE
+  RAIN_DELAY_SET
+  RAIN_DELAY_CLEAR
+  MATCH_INTERVAL_SET
+  SYNC_PUSH
+  SYNC_PULL
+  GEOFENCE_ALARM
+  TAG_PING
+  USER_BOOTSTRAP
+  LOGIN_FAIL
+}
+
+model AuditLog {
+  id         String      @id @default(uuid())
+  occurredAt DateTime    @default(now())
+  actorId    String?
+  actorRole  String?
+  action     AuditAction
+  entityType String
+  entityId   String?
+  before     Json?
+  after      Json?
+  ip         String?
+  userAgent  String?
+  prevHash   String?
+  rowHash    String      @default("")
+
+  @@index([occurredAt])
+  @@index([entityType, entityId])
+  @@index([actorId, occurredAt])
+  @@map("audit_logs")
+}
+
+// ---------- SafetyGateway (Match Control state) ----------
+
+enum SafetyState {
+  ARMED
+  DISARMED
+  ESTOP
+  RAIN_DELAY
+  MATCH_INTERVAL
+}
+
+model SafetyGateway {
+  id             String      @id
+  name           String      @unique
+  state          SafetyState @default(DISARMED)
+  rainDelayUntil DateTime?
+  intervalUntil  DateTime?
+  lastHeartbeat  DateTime?
+  reason         String?
+  setByActorId   String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+  deletedAt DateTime?
+  serverRev BigInt    @default(0)
+
+  transitions SafetyTransition[]
+
+  @@index([updatedAt, id])
+  @@index([serverRev])
+  @@map("safety_gateways")
+}
+
+model SafetyTransition {
+  id         String        @id
+  gatewayId  String
+  gateway    SafetyGateway @relation(fields: [gatewayId], references: [id])
+  fromState  SafetyState
+  toState    SafetyState
+  actorId    String?
+  reason     String?
+  occurredAt DateTime      @default(now())
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+  deletedAt DateTime?
+  serverRev BigInt    @default(0)
+
+  @@index([gatewayId, occurredAt])
+  @@index([updatedAt, id])
+  @@index([serverRev])
+  @@map("safety_transitions")
+}

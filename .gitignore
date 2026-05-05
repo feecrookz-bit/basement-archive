@@ -1,0 +1,33 @@
+# Env / secrets
+.env
+.env.local
+*.pem
+*.key
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Prisma
+backend/prisma/.env
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Docker volumes (only relevant if someone bind-mounts locally)
+pgdata/
+miniodata/
+
+# Generated smoke artifacts
+heatmap.svg
