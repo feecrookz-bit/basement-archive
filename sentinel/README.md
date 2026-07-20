@@ -19,6 +19,9 @@ All module chatter goes over Redis pub/sub and is archived append-only in
 Postgres (`events` + typed tables). Every trade stores the complete evidence
 snapshot (indicator values, regime state, config version) that produced it.
 
+Accounts, keys, and running costs for this and the memecoin tracker:
+[../RUNBOOK.md](../RUNBOOK.md).
+
 ## Run (paper — no keys needed)
 
 ```bash

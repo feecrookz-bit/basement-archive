@@ -1,5 +1,9 @@
 # Memecoin Tracker v2 — gated signals + proof-of-edge ledger
 
+> This repo also contains **[Sentinel](sentinel/)** (Binance altcoin
+> day-trading engine, paper-default). Accounts, keys, and running costs for
+> both systems: **[RUNBOOK.md](RUNBOOK.md)**.
+
 Discovery (DEX Screener) × wallet tracking (Helius/Solana), with the three
 layers that separate a working operation from a toy: **rug gates**, **wallet
 quality weighting**, and a **loss-inclusive paper ledger**.
