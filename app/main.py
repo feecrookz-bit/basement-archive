@@ -9,7 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import config, db, discovery, paper, signals, wallets
+from . import binance, config, db, discovery, paper, pumpfun, signals, wallets
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 log = logging.getLogger("main")
@@ -23,8 +23,14 @@ async def lifespan(_app: FastAPI):
     _tasks.append(asyncio.create_task(discovery.run(signals.on_discovery)))
     _tasks.append(asyncio.create_task(wallets.run(signals.on_wallet_hit)))
     _tasks.append(asyncio.create_task(paper.monitor()))
-    log.info("workers started (discovery=%s, wallets=%s)",
-             config.DISCOVERY_MODE, config.WALLET_MODE)
+    if config.BINANCE_ENABLED:
+        _tasks.append(asyncio.create_task(binance.run()))
+    if config.PUMPFUN_ENABLED:
+        _tasks.append(asyncio.create_task(pumpfun.run()))
+        _tasks.append(asyncio.create_task(pumpfun.reclaim_monitor()))
+    log.info("workers started (discovery=%s, wallets=%s, binance=%s, pumpfun=%s)",
+             config.DISCOVERY_MODE, config.WALLET_MODE,
+             config.BINANCE_ENABLED, config.PUMPFUN_ENABLED)
     try:
         yield
     finally:
@@ -91,6 +97,20 @@ async def api_paper(limit: int = 100):
 async def api_check(token: str, force: bool = False):
     from . import enrich
     return await enrich.check_token(token, force=force)
+
+@app.get("/api/binance")
+async def api_binance(limit: int = 100):
+    async with db.pool().acquire() as con:
+        rows = await con.fetch(
+            f"SELECT * FROM binance_events ORDER BY ts DESC LIMIT {min(limit, 500)}")
+    return [dict(r) for r in rows]
+
+@app.get("/api/graduations")
+async def api_graduations(limit: int = 100):
+    async with db.pool().acquire() as con:
+        rows = await con.fetch(
+            f"SELECT * FROM graduations ORDER BY migrated_at DESC LIMIT {min(limit, 500)}")
+    return [dict(r) for r in rows]
 
 @app.post("/webhooks/helius")
 async def helius_webhook(req: Request):

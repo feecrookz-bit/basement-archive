@@ -37,7 +37,7 @@ async def _dex_pair(sess: aiohttp.ClientSession, addr: str) -> dict | None:
         return None
     return max(pairs, key=lambda p: ((p.get("liquidity") or {}).get("usd") or 0))
 
-async def _rpc(sess: aiohttp.ClientSession, method: str, params: list):
+async def _rpc(sess: aiohttp.ClientSession, method: str, params: list | dict):
     url = f"{config.HELIUS_RPC_URL}/?api-key={config.HELIUS_API_KEY}"
     async with sess.post(url, json={
         "jsonrpc": "2.0", "id": 1, "method": method, "params": params
@@ -59,6 +59,33 @@ async def _mint_info(sess, addr: str) -> tuple[bool | None, bool | None]:
     except Exception as e:  # noqa: BLE001
         log.warning("mint info failed for %s: %s", addr[:8], e)
         return None, None
+
+async def _holder_count(sess, addr: str) -> int | None:
+    """Approximate holder count via Helius DAS getTokenAccounts, capped at
+    HOLDER_COUNT_MAX_PAGES * 1000. Growth trend is what matters, not the
+    absolute number; None when disabled/unavailable."""
+    if not config.HELIUS_API_KEY or config.HOLDER_COUNT_MAX_PAGES <= 0:
+        return None
+    try:
+        count, cursor = 0, None
+        for _ in range(config.HOLDER_COUNT_MAX_PAGES):
+            params = {"mint": addr, "limit": 1000}
+            if cursor:
+                params["cursor"] = cursor
+            # DAS methods take an object for params, not a positional list.
+            res = await _rpc(sess, "getTokenAccounts", params)
+            accounts = (res or {}).get("token_accounts") or []
+            count += len(accounts)
+            cursor = (res or {}).get("cursor")
+            if not cursor or len(accounts) < 1000:
+                break
+        return count or None
+    except Exception as e:  # noqa: BLE001
+        log.warning("holder count failed for %s: %s", addr[:8], e)
+        return None
+
+def _holder_cap() -> int:
+    return config.HOLDER_COUNT_MAX_PAGES * 1000
 
 async def _top10_pct(sess, addr: str) -> float | None:
     if not config.HELIUS_API_KEY:
@@ -88,13 +115,20 @@ async def check_token(addr: str, force: bool = False) -> dict:
             if cached:
                 return dict(cached)
 
+    # Previous snapshot (any age) so holder growth has a baseline.
+    async with db.pool().acquire() as con:
+        prev_holders = await con.fetchval(
+            "SELECT holder_count FROM token_checks WHERE token_address=$1", addr)
+
     async with aiohttp.ClientSession(headers=config.DEX_HEADERS) as sess:
         pair = await _dex_pair(sess, addr)
         mint_revoked, freeze_revoked = await _mint_info(sess, addr)
         top10 = await _top10_pct(sess, addr)
+        holders = await _holder_count(sess, addr)
 
     liq = vol1h = fdv = price = None
     pair_addr = pair_created = None
+    buys_h1 = sells_h1 = vol_m5 = None
     if pair:
         liq = float((pair.get("liquidity") or {}).get("usd") or 0)
         vol1h = float((pair.get("volume") or {}).get("h1") or 0)
@@ -104,6 +138,12 @@ async def check_token(addr: str, force: bool = False) -> dict:
         if pair.get("pairCreatedAt"):
             pair_created = datetime.fromtimestamp(
                 pair["pairCreatedAt"] / 1000, tz=timezone.utc)
+        txns_h1 = (pair.get("txns") or {}).get("h1") or {}
+        if txns_h1.get("buys") is not None:
+            buys_h1 = int(txns_h1.get("buys") or 0)
+            sells_h1 = int(txns_h1.get("sells") or 0)
+        m5 = (pair.get("volume") or {}).get("m5")
+        vol_m5 = float(m5) if m5 is not None else None
 
     fails: list[str] = []
     if pair is None:
@@ -122,30 +162,50 @@ async def check_token(addr: str, force: bool = False) -> dict:
     if top10 is not None and top10 > config.MAX_TOP10_PCT:
         fails.append(f"top-10 holders {top10}% > {config.MAX_TOP10_PCT}%")
 
+    # ---- Method-3 gates (missing data never gates) ----
+    if buys_h1 is not None and sells_h1 is not None:
+        ratio = buys_h1 / max(sells_h1, 1)
+        if ratio < config.M3_MIN_BUY_SELL_RATIO_H1:
+            fails.append(f"h1 buy/sell ratio {ratio:.2f} < {config.M3_MIN_BUY_SELL_RATIO_H1}")
+    if vol_m5 is not None and vol_m5 < config.M3_MIN_VOLUME_M5_USD:
+        fails.append(f"5m volume ${vol_m5:,.0f} < ${config.M3_MIN_VOLUME_M5_USD:,.0f} (momentum stale)")
+    if (config.M3_REQUIRE_HOLDER_GROWTH and holders is not None
+            and prev_holders is not None and holders < _holder_cap()):
+        if holders <= prev_holders:
+            fails.append(f"holders not growing ({prev_holders} -> {holders})")
+
     row = {
         "token_address": addr, "liquidity_usd": liq, "volume_h1_usd": vol1h,
         "fdv_usd": fdv, "price_usd": price, "pair_address": pair_addr,
         "pair_created_at": pair_created, "mint_revoked": mint_revoked,
         "freeze_revoked": freeze_revoked, "top10_pct": top10,
         "passed": not fails, "fail_reasons": "; ".join(fails) or None,
+        "buys_h1": buys_h1, "sells_h1": sells_h1, "volume_m5_usd": vol_m5,
+        "holder_count": holders, "holder_count_prev": prev_holders,
     }
     async with db.pool().acquire() as con:
         await con.execute(
             """
             INSERT INTO token_checks (token_address, liquidity_usd, volume_h1_usd,
                 fdv_usd, price_usd, pair_address, pair_created_at, mint_revoked,
-                freeze_revoked, top10_pct, passed, fail_reasons, checked_at)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12, now())
+                freeze_revoked, top10_pct, passed, fail_reasons,
+                buys_h1, sells_h1, volume_m5_usd, holder_count, holder_count_prev,
+                checked_at)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17, now())
             ON CONFLICT (token_address) DO UPDATE SET
                 liquidity_usd=$2, volume_h1_usd=$3, fdv_usd=$4, price_usd=$5,
                 pair_address=$6, pair_created_at=$7, mint_revoked=$8,
                 freeze_revoked=$9, top10_pct=$10, passed=$11, fail_reasons=$12,
+                buys_h1=$13, sells_h1=$14, volume_m5_usd=$15,
+                holder_count=$16, holder_count_prev=$17,
                 checked_at=now()
             """,
             *[row[k] for k in ("token_address", "liquidity_usd", "volume_h1_usd",
                                "fdv_usd", "price_usd", "pair_address",
                                "pair_created_at", "mint_revoked", "freeze_revoked",
-                               "top10_pct", "passed", "fail_reasons")],
+                               "top10_pct", "passed", "fail_reasons",
+                               "buys_h1", "sells_h1", "volume_m5_usd",
+                               "holder_count", "holder_count_prev")],
         )
     return row
 

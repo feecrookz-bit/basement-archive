@@ -72,7 +72,7 @@ async function refresh(){
     $('status').textContent = `${sig.length} signals · ${disc.length} tokens · ${new Date().toLocaleTimeString()}`;
     $('signals').innerHTML = sig.map(s=>`
       <div class="row signal" style="${s.gated?'':'opacity:.45;border-left-color:#444'}">
-        <span class="score">${s.kind==='moonshot'?'🌙 ':''}${s.score}</span>${s.gated?'':' <span class="muted">[filtered]</span>'}
+        <span class="score">${s.kind==='moonshot'?'🌙 ':s.kind==='graduation'?'🎓 ':''}${s.score}</span>${s.gated?'':' <span class="muted">[filtered]</span>'}
         <a class="addr" href="${dex(s.chain_id,s.token_address)}" target="_blank">${short(s.token_address)}</a>
         <div class="muted">${s.reason} · wallet ${short(s.wallet)}</div>
       </div>`).join('') || '<div class="muted">no signals yet</div>';

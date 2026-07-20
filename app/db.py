@@ -87,6 +87,35 @@ ALTER TABLE signals      ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'mo
 ALTER TABLE paper_trades ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'momentum';
 ALTER TABLE paper_trades ADD COLUMN IF NOT EXISTS peak_x DOUBLE PRECISION;
 
+-- v2.2: Method-3 snapshot data on token_checks
+ALTER TABLE token_checks ADD COLUMN IF NOT EXISTS buys_h1  INT;
+ALTER TABLE token_checks ADD COLUMN IF NOT EXISTS sells_h1 INT;
+ALTER TABLE token_checks ADD COLUMN IF NOT EXISTS volume_m5_usd DOUBLE PRECISION;
+ALTER TABLE token_checks ADD COLUMN IF NOT EXISTS holder_count INT;
+ALTER TABLE token_checks ADD COLUMN IF NOT EXISTS holder_count_prev INT;
+
+-- v2.2: Binance touchpoints on tokens we care about (exit-liquidity events)
+CREATE TABLE IF NOT EXISTS binance_events (
+    id            BIGSERIAL PRIMARY KEY,
+    token_address TEXT NOT NULL,
+    symbol        TEXT,
+    event_type    TEXT NOT NULL,           -- alpha | announcement
+    title         TEXT,
+    url           TEXT,
+    ts            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (token_address, event_type, title)
+);
+
+-- v2.2: pump.fun graduations and the dump->reclaim state machine
+CREATE TABLE IF NOT EXISTS graduations (
+    token_address TEXT PRIMARY KEY,
+    migrated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    grad_price    DOUBLE PRECISION,
+    low_price     DOUBLE PRECISION,
+    reclaimed     BOOLEAN NOT NULL DEFAULT false,
+    reclaimed_at  TIMESTAMPTZ
+);
+
 CREATE INDEX IF NOT EXISTS idx_tokens_first_seen ON tokens (first_seen DESC);
 CREATE INDEX IF NOT EXISTS idx_hits_ts    ON wallet_hits (ts DESC);
 CREATE INDEX IF NOT EXISTS idx_hits_token ON wallet_hits (token_address, side, ts DESC);

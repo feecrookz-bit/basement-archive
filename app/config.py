@@ -73,3 +73,29 @@ MOONSHOT_MIN_ACCUM_SPAN_HOURS = _f("MOONSHOT_MIN_ACCUM_SPAN_HOURS", "12")  # buy
 # Moonshot paper exits: let winners run, cut the dead, measure peak multiple.
 MOONSHOT_SL_PCT = _f("MOONSHOT_SL_PCT", "60")
 MOONSHOT_TIMEOUT_HOURS = _f("MOONSHOT_TIMEOUT_HOURS", "720")   # 30 days
+
+# --- Method-3 gates (momentum only; None data never gates) ---
+M3_MIN_BUY_SELL_RATIO_H1 = _f("M3_MIN_BUY_SELL_RATIO_H1", "1.0")  # h1 buys/sells must exceed
+M3_MIN_VOLUME_M5_USD = _f("M3_MIN_VOLUME_M5_USD", "1000")         # momentum is current, not historical
+M3_REQUIRE_HOLDER_GROWTH = os.getenv("M3_REQUIRE_HOLDER_GROWTH", "false").lower() in {"1", "true", "yes"}
+HOLDER_COUNT_MAX_PAGES = int(os.getenv("HOLDER_COUNT_MAX_PAGES", "5"))  # DAS pages of 1000; 0 = off
+
+# --- Binance events (exit-liquidity flags, not price prediction) ---
+BINANCE_ENABLED = os.getenv("BINANCE_ENABLED", "true").lower() in {"1", "true", "yes"}
+BINANCE_POLL_SECONDS = int(os.getenv("BINANCE_POLL_SECONDS", "300"))
+BINANCE_ALPHA_URL = os.getenv(
+    "BINANCE_ALPHA_URL",
+    "https://www.binance.com/bapi/defi/v1/public/wallet-direct/buw/wallet/cex/alpha/all/token/list",
+)
+BINANCE_CMS_URL = os.getenv(
+    "BINANCE_CMS_URL",
+    "https://www.binance.com/bapi/composite/v1/public/cms/article/catalog/list/query"
+    "?catalogId=48&pageNo=1&pageSize=20",
+)
+
+# --- Pump.fun graduation watcher ---
+PUMPFUN_ENABLED = os.getenv("PUMPFUN_ENABLED", "true").lower() in {"1", "true", "yes"}
+PUMPPORTAL_WS_URL = os.getenv("PUMPPORTAL_WS_URL", "wss://pumpportal.fun/api/data")
+GRAD_RECLAIM_WINDOW_HOURS = _f("GRAD_RECLAIM_WINDOW_HOURS", "24")  # stop watching after this
+GRAD_MIN_DUMP_PCT = _f("GRAD_MIN_DUMP_PCT", "20")  # dump depth before a reclaim counts
+GRAD_MONITOR_MAX = int(os.getenv("GRAD_MONITOR_MAX", "60"))  # price fetches per tick (rate-limit guard)

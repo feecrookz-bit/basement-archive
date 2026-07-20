@@ -98,6 +98,40 @@ exists to tell you whether *your wallet list* finds those 40x's often
 enough. Expect the momentum ledger to look better for months while the
 moonshot ledger looks terrible right up until it doesn't.
 
+## Method-3 gates (v2.2)
+The momentum path now also automates the "60-second checklist": h1 buy/sell
+transaction ratio ≥ `M3_MIN_BUY_SELL_RATIO_H1`, 5-minute volume still
+printing (≥ `M3_MIN_VOLUME_M5_USD` — momentum must be *current*, not
+historical), and optional holder-count growth between checks
+(`M3_REQUIRE_HOLDER_GROWTH`, counted via Helius DAS up to
+`HOLDER_COUNT_MAX_PAGES`×1000 accounts). Missing data never gates — these
+tighten the filter when the data exists, and every rejection lands in
+`fail_reasons` like the rest. Moonshot gates are unchanged: heat filters
+would contradict quiet accumulation.
+
+## Binance events (v2.2)
+A watcher polls Binance Alpha's public token list and (best-effort) the
+listing-announcements feed, and alerts when a token we discovered,
+signalled, or hold in the paper ledger gets a Binance touchpoint —
+historically the single best exit-liquidity window a low-cap ever gets.
+The alert says "consider securing profits", not "buy": listing pumps are
+classically sell-the-news, and distribution follows the spike. Events are
+recorded in `binance_events` (`/api/binance`). This flags exit windows;
+it does not predict them.
+
+## Graduation plays (v2.2)
+PumpPortal's free WebSocket seeds pump.fun launches into discovery
+(`source='pumpfun'`) and records migrations to Raydium/PumpSwap in
+`graduations` (`/api/graduations`). The tradeable pattern is the
+post-graduation **dump → reclaim**: early curve buyers dump into new
+liquidity (−30–60% is normal), and if price then reclaims the graduation
+level after a ≥ `GRAD_MIN_DUMP_PCT`% flush inside
+`GRAD_RECLAIM_WINDOW_HOURS`, a 🎓 `kind='graduation'` signal fires — still
+through the standard safety gates — and opens a paper trade with
+momentum-style exits. Tokens that never reclaim were nothing and cost
+nothing; the ledger's graduation section tells you whether the reclaim
+entry actually earns.
+
 ## Honest footnote
 This is a candidate-surfacing and measurement system, not an income machine.
 Copy-trading meme wallets is a negative-sum game where most participants

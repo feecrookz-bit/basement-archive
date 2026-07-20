@@ -114,10 +114,12 @@ async def monitor() -> None:
             log.warning("paper monitor error: %s", e)
         await asyncio.sleep(config.PAPER_CHECK_SECONDS)
 
+KINDS = ("momentum", "moonshot", "graduation")
+
 async def ledger_summary() -> dict:
     out: dict = {}
     async with db.pool().acquire() as con:
-        for kind in ("momentum", "moonshot"):
+        for kind in KINDS:
             row = await con.fetchrow(
                 """
                 SELECT COUNT(*) FILTER (WHERE status <> 'open')              AS closed,
@@ -134,9 +136,9 @@ async def ledger_summary() -> dict:
             d["avg_pnl_pct"] = round(d["avg_pnl_pct"], 1)
             out[kind] = d
     # combined topline for the dashboard strip
-    out["net_sol"] = round(out["momentum"]["net_sol"] + out["moonshot"]["net_sol"], 3)
-    out["closed"] = out["momentum"]["closed"] + out["moonshot"]["closed"]
-    out["open"] = out["momentum"]["open"] + out["moonshot"]["open"]
-    wins = out["momentum"]["wins"] + out["moonshot"]["wins"]
+    out["net_sol"] = round(sum(out[k]["net_sol"] for k in KINDS), 3)
+    out["closed"] = sum(out[k]["closed"] for k in KINDS)
+    out["open"] = sum(out[k]["open"] for k in KINDS)
+    wins = sum(out[k]["wins"] for k in KINDS)
     out["win_rate"] = round(100 * wins / out["closed"], 1) if out["closed"] else None
     return out
