@@ -2,3 +2,6 @@
 __pycache__/
 *.pyc
 pgdata/
+node_modules/
+.next/
+.pytest_cache/
