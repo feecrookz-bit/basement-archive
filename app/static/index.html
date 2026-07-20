@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Memecoin Tracker — dev view</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin:0; font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
+         background:#0b0e11; color:#d7dde3; }
+  header { padding:14px 18px; border-bottom:1px solid #1c232b; display:flex;
+           gap:16px; align-items:center; flex-wrap:wrap; }
+  h1 { font-size:15px; margin:0; color:#7ee787; letter-spacing:.5px; }
+  main { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:#1c232b; }
+  section { background:#0b0e11; padding:14px 18px; min-height:60vh; }
+  h2 { font-size:12px; text-transform:uppercase; letter-spacing:1px; color:#8b98a5; }
+  .row { padding:8px 0; border-bottom:1px solid #141a20; }
+  .signal { border-left:3px solid #f0883e; padding-left:10px; }
+  .score { color:#f0883e; font-weight:700; }
+  .addr { color:#58a6ff; word-break:break-all; }
+  .muted { color:#6a7681; font-size:12px; }
+  input,button { font:inherit; background:#131920; color:#d7dde3;
+                 border:1px solid #263039; border-radius:6px; padding:6px 10px; }
+  button { cursor:pointer; }
+  a { color:#58a6ff; text-decoration:none; }
+  @media (max-width:760px){ main{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<header>
+  <h1>📡 MEMECOIN TRACKER</h1>
+  <span class="muted" id="status">connecting…</span>
+  <span id="ledger" style="color:#7ee787"></span>
+  <span style="flex:1"></span>
+  <input id="w" placeholder="wallet address" size="30" />
+  <input id="l" placeholder="label" size="10" />
+  <button onclick="addWallet()">track</button>
+</header>
+<main>
+  <section>
+    <h2>Signals — wallet buys on fresh tokens</h2>
+    <div id="signals"></div>
+  </section>
+  <section>
+    <h2>Discovery — newly listed / boosted</h2>
+    <div id="discovery"></div>
+  </section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const short = a => a ? a.slice(0,4)+'…'+a.slice(-4) : '';
+const dex = (c,a) => `https://dexscreener.com/${c}/${a}`;
+
+async function addWallet(){
+  const wallet = $('w').value.trim(); if(!wallet) return;
+  await fetch('/api/wallets',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({wallet, label:$('l').value.trim()||null})});
+  $('w').value=''; $('l').value='';
+}
+
+async function refresh(){
+  try{
+    const [sig,disc,pap] = await Promise.all([
+      fetch('/api/signals?limit=40').then(r=>r.json()),
+      fetch('/api/discovery?limit=60').then(r=>r.json()),
+      fetch('/api/paper?limit=1').then(r=>r.json())
+    ]);
+    const s = pap.summary || {};
+    $('ledger').textContent = s.closed
+      ? `LEDGER: ${s.net_sol>=0?'+':''}${s.net_sol} SOL · ${s.win_rate??'–'}% win · ${s.closed} closed / ${s.open} open` + (s.moonshot?.best_peak_x ? ` · 🌙 best ${s.moonshot.best_peak_x}x` : '')
+      : 'LEDGER: no closed trades yet';
+    $('status').textContent = `${sig.length} signals · ${disc.length} tokens · ${new Date().toLocaleTimeString()}`;
+    $('signals').innerHTML = sig.map(s=>`
+      <div class="row signal" style="${s.gated?'':'opacity:.45;border-left-color:#444'}">
+        <span class="score">${s.kind==='moonshot'?'🌙 ':''}${s.score}</span>${s.gated?'':' <span class="muted">[filtered]</span>'}
+        <a class="addr" href="${dex(s.chain_id,s.token_address)}" target="_blank">${short(s.token_address)}</a>
+        <div class="muted">${s.reason} · wallet ${short(s.wallet)}</div>
+      </div>`).join('') || '<div class="muted">no signals yet</div>';
+    $('discovery').innerHTML = disc.map(t=>`
+      <div class="row">
+        <a class="addr" href="${dex(t.chain_id,t.token_address)}" target="_blank">${short(t.token_address)}</a>
+        <span class="muted">[${t.chain_id}·${t.source}]</span>
+        <div class="muted">${(t.description||'').slice(0,80)}</div>
+      </div>`).join('') || '<div class="muted">waiting for feed…</div>';
+  }catch(e){ $('status').textContent = 'error: '+e.message; }
+}
+refresh(); setInterval(refresh, 4000);
+</script>
+</body>
+</html>
