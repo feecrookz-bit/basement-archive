@@ -47,15 +47,30 @@ async def live():
             "SELECT * FROM regime_snapshots ORDER BY ts DESC LIMIT 1")
         watchlist = await con.fetchrow(
             "SELECT * FROM watchlist_snapshots ORDER BY ts DESC LIMIT 1")
-        positions = await con.fetch("SELECT * FROM v_open_positions")
+        positions = await con.fetch(
+            """
+            SELECT v.*, p.entry_price, p.stop_price, p.targets,
+                   (SELECT stop_after FROM trade_events e
+                     WHERE e.trade_id = v.trade_id AND e.stop_after IS NOT NULL
+                     ORDER BY e.seq DESC LIMIT 1)  AS current_stop,
+                   (SELECT r_at_event FROM trade_events e
+                     WHERE e.trade_id = v.trade_id AND e.r_at_event IS NOT NULL
+                     ORDER BY e.seq DESC LIMIT 1)  AS last_r
+            FROM v_open_positions v
+            JOIN trades t USING (trade_id)
+            JOIN proposals p ON p.id = t.proposal_id
+            """)
         halts = await con.fetch(
             "SELECT * FROM halt_events ORDER BY ts DESC LIMIT 5")
         readiness = await con.fetchrow("SELECT * FROM v_paper_readiness")
+        equity = await con.fetchrow(
+            "SELECT equity, mode, ts FROM equity_snapshots ORDER BY ts DESC LIMIT 1")
     return {"regime": _rows([regime])[0] if regime else None,
             "watchlist": _rows([watchlist])[0] if watchlist else None,
             "open_positions": _rows(positions),
             "recent_halts": _rows(halts),
-            "paper_readiness": dict(readiness) if readiness else None}
+            "paper_readiness": dict(readiness) if readiness else None,
+            "equity": dict(equity) if equity else None}
 
 
 @app.get("/api/ledger")

@@ -1,41 +1,127 @@
+/* Sentinel dashboard — design language per FATBot reference:
+   near-black panels, amber numerals, uppercase micro-labels, outlined
+   pills, stat-card grids, gradient SL→TP bars, tab navigation. */
 :root {
   color-scheme: dark;
-  --bg: #0b0e11;
-  --panel: #12161b;
-  --border: #1e252d;
-  --text: #d7dde3;
-  --muted: #77828d;
-  --green: #7ee787;
-  --red: #ff6b6b;
-  --amber: #ffb02e;
+  --bg: #0a0c0f;
+  --bg2: #0e1116;
+  --panel: #12151b;
+  --panel2: #171b22;
+  --border: #21262e;
+  --text: #e6e9ec;
+  --muted: #7a838e;
+  --dim: #4d565f;
+  --amber: #f5a623;
+  --amber-dim: #3a2b00;
+  --green: #2fd575;
+  --green-dim: #0d2b1a;
+  --red: #f04a4a;
+  --red-dim: #35100f;
   --blue: #58a6ff;
+  --blue-dim: #10233c;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
 }
 * { box-sizing: border-box; }
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.5 var(--mono); }
+a { color: inherit; text-decoration: none; }
+
+/* ---------- top bar ---------- */
+.topbar {
+  display: flex; align-items: center; gap: 14px;
+  padding: 10px 18px; background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
 }
-a { color: var(--blue); text-decoration: none; }
-nav { display: flex; gap: 18px; padding: 12px 20px; border-bottom: 1px solid var(--border); }
-nav a.active { color: var(--green); }
-main { padding: 20px; max-width: 1200px; margin: 0 auto; }
-h1 { font-size: 16px; letter-spacing: 0.5px; }
-h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-top: 28px; }
-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
-th { color: var(--muted); font-weight: 500; }
-.banner {
-  padding: 10px 20px; font-weight: 700; letter-spacing: 1.5px; text-align: center;
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: .5px; }
+.brand .bolt {
+  width: 26px; height: 26px; border-radius: 6px; background: var(--amber);
+  color: #14100a; display: grid; place-items: center; font-size: 15px;
 }
-.banner.paper { background: #3a2b00; color: var(--amber); border-bottom: 2px solid var(--amber); }
-.banner.live { background: #3a0d0d; color: var(--red); border-bottom: 2px solid var(--red); }
-.pill { display: inline-block; padding: 1px 8px; border-radius: 9px; font-size: 12px; border: 1px solid var(--border); }
-.pill.good { color: var(--green); border-color: var(--green); }
-.pill.bad { color: var(--red); border-color: var(--red); }
-.pill.warn { color: var(--amber); border-color: var(--amber); }
-.muted { color: var(--muted); }
-pre { background: var(--panel); border: 1px solid var(--border); padding: 12px; overflow-x: auto; border-radius: 6px; font-size: 12px; }
+.brand .bot { color: var(--amber); }
+.topbar .spacer { flex: 1; }
+.topstat { text-align: right; }
+.topstat .lbl { color: var(--muted); font-size: 10px; letter-spacing: 1.2px; }
+.topstat .val { font-weight: 700; font-size: 14px; }
+.clock { color: var(--muted); font-size: 11px; text-align: right; line-height: 1.35; }
+
+/* ---------- pills / badges ---------- */
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 600;
+  border: 1px solid var(--border); color: var(--muted); background: transparent;
+  letter-spacing: .4px; white-space: nowrap;
+}
+.pill .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.pill.green { color: var(--green); border-color: rgba(47,213,117,.45); background: rgba(47,213,117,.06); }
+.pill.red { color: var(--red); border-color: rgba(240,74,74,.45); background: rgba(240,74,74,.07); }
+.pill.amber { color: var(--amber); border-color: rgba(245,166,35,.5); background: rgba(245,166,35,.07); }
+.pill.blue { color: var(--blue); border-color: rgba(88,166,255,.45); background: rgba(88,166,255,.07); }
+.pill.solid-red { background: var(--red-dim); border-color: var(--red); color: var(--red); font-weight: 700; }
+.pill.solid-amber { background: var(--amber); border-color: var(--amber); color: #14100a; font-weight: 700; }
+
+/* ---------- mode banner strip ---------- */
+.modebar { padding: 7px 18px; font-weight: 700; letter-spacing: 1.4px; font-size: 11px; text-transform: uppercase; }
+.modebar.paper { background: var(--amber-dim); color: var(--amber); border-bottom: 1px solid rgba(245,166,35,.35); }
+.modebar.live { background: var(--red-dim); color: var(--red); border-bottom: 1px solid rgba(240,74,74,.5); }
+
+/* ---------- nav tabs ---------- */
+.tabs { display: flex; gap: 4px; padding: 0 18px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+.tabs a {
+  padding: 10px 14px; color: var(--muted); font-size: 12px; letter-spacing: 1.2px;
+  text-transform: uppercase; border-bottom: 2px solid transparent;
+}
+.tabs a:hover { color: var(--text); }
+.tabs a.active { color: var(--amber); border-bottom-color: var(--amber); }
+
+main { padding: 18px; max-width: 1280px; margin: 0 auto; }
+
+/* ---------- panels / sections ---------- */
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.panel + .panel, section + section { margin-top: 16px; }
+.sect { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; }
+.sect h2 {
+  margin: 0; font-size: 12px; letter-spacing: 1.6px; text-transform: uppercase;
+  color: var(--text); font-weight: 700;
+}
+.sect .ind { width: 7px; height: 7px; border-radius: 50%; background: var(--amber); }
+.sect .ind.green { background: var(--green); }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
-.card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+
+/* ---------- stat cards (ENTRY / STOP / TARGET ...) ---------- */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.stat { background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; text-align: center; }
+.stat .lbl { color: var(--muted); font-size: 10px; letter-spacing: 1.6px; text-transform: uppercase; }
+.stat .val { font-size: 19px; font-weight: 700; margin-top: 4px; }
+.stat .val.amber { color: var(--amber); }
+.stat .val.green { color: var(--green); }
+.stat .val.red { color: var(--red); }
+
+/* ---------- tables ---------- */
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--muted); font-weight: 500; font-size: 10.5px; letter-spacing: 1.4px; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+td.sym { color: var(--green); font-weight: 700; }
+td.num { color: var(--amber); font-weight: 600; }
+
+/* ---------- position card + SL→TP bar ---------- */
+.poscard { background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+.poscard .row1 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.poscard .pair { font-weight: 800; font-size: 14px; }
+.rbar { position: relative; height: 8px; border-radius: 4px; margin: 12px 0 6px;
+  background: linear-gradient(90deg, var(--red) 0%, #6b3d10 30%, #1d4d2e 60%, var(--green) 100%); opacity: .9; }
+.rbar .mark {
+  position: absolute; top: -4px; width: 4px; height: 16px; border-radius: 2px;
+  background: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,.18);
+}
+.rlegend { display: flex; justify-content: space-between; font-size: 11px; }
+.rlegend .sl { color: var(--red); } .rlegend .tp { color: var(--green); }
+.rlegend .mid { color: var(--muted); }
+
+.muted { color: var(--muted); }
+.dim { color: var(--dim); }
+pre { background: var(--bg2); border: 1px solid var(--border); padding: 12px; overflow-x: auto; border-radius: 8px; font-size: 11.5px; margin: 8px 0 0; }
+details summary { cursor: pointer; }
+.gatebar { height: 8px; border-radius: 4px; background: var(--bg2); border: 1px solid var(--border); overflow: hidden; margin-top: 8px; }
+.gatebar .fill { height: 100%; background: var(--amber); }
+.gatebar .fill.done { background: var(--green); }
