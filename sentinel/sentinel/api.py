@@ -55,7 +55,8 @@ async def live():
                      ORDER BY e.seq DESC LIMIT 1)  AS current_stop,
                    (SELECT r_at_event FROM trade_events e
                      WHERE e.trade_id = v.trade_id AND e.r_at_event IS NOT NULL
-                     ORDER BY e.seq DESC LIMIT 1)  AS last_r
+                     ORDER BY e.seq DESC LIMIT 1)  AS last_r,
+                   t.setup_type, p.evidence
             FROM v_open_positions v
             JOIN trades t USING (trade_id)
             JOIN proposals p ON p.id = t.proposal_id
@@ -72,13 +73,24 @@ async def live():
             WHERE ts > now() - interval '2 hours'
             ORDER BY pair, ts DESC
             """)
+    # setup trust — what the ledger currently thinks of each setup
+    setup_trust = {}
+    try:
+        from .ledger import PgLedger
+        from .modules import expectancy
+        cfg = config_mod.load() if config_mod.DEFAULT_PATH.exists() else None
+        if cfg:
+            setup_trust = await expectancy.setup_expectancy(PgLedger(db.pool()), cfg)
+    except Exception:  # noqa: BLE001
+        setup_trust = {}
     return {"regime": _rows([regime])[0] if regime else None,
             "watchlist": _rows([watchlist])[0] if watchlist else None,
             "open_positions": _rows(positions),
             "recent_halts": _rows(halts),
             "paper_readiness": dict(readiness) if readiness else None,
             "equity": dict(equity) if equity else None,
-            "ict": _rows(ict)}
+            "ict": _rows(ict),
+            "setup_trust": setup_trust}
 
 
 @app.get("/api/ledger")

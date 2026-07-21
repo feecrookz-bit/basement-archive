@@ -46,6 +46,10 @@ regime:                          # module 1 — the tide-reader (refresh: 5 min)
     tighten_stops_to_r: 0.5      # open positions: stop pulled to max(current, entry - 0.5R)
     funding_extreme_percentile: 95   # top perps funding above this pctile => "crowded" flag
   volatile_chop_mandatory_flat: true
+  rotation:                      # edge-quality macro gate (secondary; default OFF)
+    enabled: false               # BTC.D rising hard = risk-off; block alt longs
+    max_btc_d_rise_pp_24h: 0.75  # 24h dominance rise (pp) above this -> btc_d_rising kill flag
+    coingecko_url: "https://api.coingecko.com/api/v3/global"
 
 # -----------------------------------------------------------------------------
 scout:                           # module 2 — the scanner (refresh: 15 min)
@@ -96,6 +100,28 @@ analyst:                         # module 3 — exactly three setups, no more
       stochrsi_reset_below: 20
       entry: ema_reclaim_1h_close
       invalidation: structure_low_break
+
+# -----------------------------------------------------------------------------
+conviction:                      # v3 edge-quality layer between Analyst and Risk
+  enabled: true
+  setup_base_weights:            # ICT is the premium signal; others confirm
+    ict: 1.5
+    breakout_retest: 1.0
+    rs_momentum: 1.0
+    range_play: 0.9
+  ict_premium: 1.25              # extra multiplier when ICT is among the agreeing setups
+  confluence_bonus: 0.4          # per extra setup agreeing on the same pair
+  expectancy:                    # "let the ledger decide" — self-tuning setup trust
+    window_trades: 30            # trailing closed trades per setup
+    min_trades: 8                # below this -> neutral 1.0 (cold-start safe)
+    k: 0.6                       # avg_r -> multiplier slope
+    clamp: [0.25, 2.0]
+    negative_expectancy_gate: true   # drop a setup's contribution once it's a proven loser
+  sizing:                        # scale risk by conviction, BOUNDED; hard caps still veto
+    enabled: true
+    min_mult: 0.8
+    max_mult: 1.5                # top conviction risks ~1.1% vs 0.75% base; 2% open cap unchanged
+    pivot: 1.5                   # conviction that maps to 1.0x base risk
 
 # -----------------------------------------------------------------------------
 ict:                             # setup class #4 — the ICT agent (v2 amendment to

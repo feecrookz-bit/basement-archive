@@ -18,7 +18,7 @@ from .bus import Bus
 from .data.ingest import BinanceRest, backfill, derivatives_overlay, kline_stream
 from .data.market import LiveMarket
 from .ledger import PgLedger
-from .modules import analyst, coach, regime, risk
+from .modules import analyst, coach, conviction, expectancy, regime, risk
 from .modules.executor import Executor, paper_days, resolve_mode
 
 log = logging.getLogger("workers")
@@ -99,6 +99,8 @@ class Supervisor:
                     proposals = await analyst.scan(
                         self.market, self.ledger, self.bus, self.cfg,
                         self.latest_regime, self.latest_watchlist)
+                    exp = await expectancy.setup_expectancy(self.ledger, self.cfg)
+                    proposals = conviction.rank(proposals, exp, self.cfg)
                     state = await self.account_state()
                     for p in proposals:
                         verdict = await risk.judge(p, state, self.ledger,

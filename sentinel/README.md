@@ -91,6 +91,44 @@ Exits are mechanical for all setups: 50% off at 1.5R and stop to
 breakeven, 25% at 2.5R, remainder trailed on the 1h swing low. The
 dashboard has no override buttons on purpose.
 
+## Conviction engine (v3 — edge quality, not aggression)
+
+Between the Analyst and the Risk veto sits a conviction layer that decides
+*which* trades to take and *how much* to size them — within the unchanged
+risk envelope. It answers the problem that the 3 position slots used to go
+to whichever proposal was seen first, not the best one.
+
+For each pair with any setups firing, conviction =
+`Σ(base_weight × ledger_trust)` over the agreeing setups, boosted by a
+**confluence bonus** (multiple setups on one pair) and an **ICT premium**
+(ICT carries the highest base weight). Three sources, all the operator
+asked for:
+
+- **Confluence** — more independent setups agreeing = higher conviction.
+- **ICT premium** — the ICT sequence is treated as the premium signal.
+- **The ledger decides** — each setup is weighted by its own trailing
+  realized expectancy (avg R over the last `window_trades`). Cold-start
+  neutral (1.00×) below `min_trades`, then winners rise toward the clamp
+  ceiling and losers fade to the floor and get gated out. Self-tuning,
+  bounded, automatic — the same philosophy as the tracker's wallet weights.
+
+Conviction then does two things, neither of which loosens risk:
+1. **Ranking** — proposals are judged best-conviction-first, so the limited
+   slots and the 2% open-risk budget go to the strongest opportunities.
+   One deliberately-chosen trade per pair replaces the old arbitrary
+   `already_in_pair` rejection.
+2. **Sizing** — risk-per-trade scales with conviction, *bounded*
+   (`min_mult`–`max_mult`, default 0.8–1.5×, so a top trade risks ~1.1% vs
+   the 0.75% base). **Every hard cap still vetoes** — 2% total open risk,
+   3 concurrent, sector cap, both circuit breakers. Average risk stays
+   disciplined; only selection and modest sizing improve. That's edge
+   quality, not leverage.
+
+The dashboard shows a conviction chip + confluence count on each position
+and a **Setup trust** panel (what the ledger currently thinks of each
+setup). A secondary, opt-in **rotation gate** (`regime.rotation.enabled`,
+default off) blocks alt longs when BTC dominance is rising hard.
+
 ## Backtest
 
 ```bash

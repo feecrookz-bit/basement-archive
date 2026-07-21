@@ -96,6 +96,14 @@ async def tick(market, ledger, bus, cfg, funding_pctile: float | None = None) ->
     if funding_pctile is not None and funding_pctile >= extreme:
         snap["kill_flags"].append("funding_crowded")
         snap["trading_allowed"] = False
+    # Rotation gate (secondary, opt-in): BTC.D rising hard = risk-off for alts.
+    if cfg.get("regime.rotation.enabled", False):
+        from ..data import dominance
+        rise = await dominance.rise_pp_24h(cfg)
+        snap["btc_d_rise_pp"] = rise
+        if rise is not None and rise >= cfg.get("regime.rotation.max_btc_d_rise_pp_24h", 0.75):
+            snap["kill_flags"].append("btc_d_rising")
+            snap["trading_allowed"] = False
     snap["config_version_id"] = cfg.version_id
     snap["id"] = await ledger.insert_regime(snap)
     await bus.publish("regime", "regime.tick", snap)
