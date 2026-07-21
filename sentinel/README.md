@@ -142,11 +142,59 @@ adapter (`MemoryLedger`), not a parallel implementation. Within-candle price
 paths are applied pessimistically (low before high), so stops are honoured
 before targets.
 
+## Sign-in (optional, recommended when exposed beyond localhost)
+
+Set `DASHBOARD_PASSWORD` in the API's environment and the dashboard grows a
+login page; every `/api/*` route except `/api/health` and the auth routes
+returns 401 without a valid session cookie. Unset (the default), auth is
+off and nothing changes for localhost / SSH-forward use.
+
+- `POST /api/auth/login` exchanges the password for an HMAC-signed,
+  7-day-expiring token in an httpOnly `sentinel_session` cookie (stdlib
+  `hmac`, constant-time compares, no new dependencies).
+- Set `SESSION_SECRET` too if you want sessions to survive API restarts.
+- Single-operator by design — one password, no accounts, no OAuth. The
+  dashboard stays read-only either way; there is nothing to protect *from*
+  a viewer except your ledger's privacy.
+
+## Notifications
+
+Sentinel pushes to Discord and/or Telegram when something worth knowing
+happens — and only then (no per-candle spam):
+
+| moment | content |
+|---|---|
+| trade opened | pair, setup, conviction, entry/stop, risk %, live banner |
+| TP1 / TP2 / stop / trail | realized R + remaining position |
+| circuit-breaker halt | scope + reason |
+| coach report | the nightly/weekly narrative |
+| paper→live gate opens | one-time, when ≥30 paper days accrue |
+
+Configure any of `DISCORD_WEBHOOK_URL` or `TELEGRAM_BOT_TOKEN` +
+`TELEGRAM_CHAT_ID`; unset = silent no-op. Alert failures are swallowed —
+a dead webhook can never touch trading. The same events also render in the
+dashboard's **Activity** feed (from the event bus, zero extra infra).
+
 ## Development
 
 ```bash
 pip install -r requirements.txt
-pytest -q          # 62 tests, no infra needed
+pytest -q          # unit tests, no infra needed
+```
+
+### E2E (Playwright)
+
+The browser suite drives the real stack — Postgres, API with auth on, the
+built Next.js dashboard — through sign-in, every page, the activity feed,
+API 401s and a mobile-viewport overflow check. CI runs it as the
+`sentinel-e2e` job; locally:
+
+```bash
+docker compose up -d db
+python scripts/seed_demo.py                       # representative demo data
+DASHBOARD_PASSWORD=e2e-pass uvicorn sentinel.api:app --port 8080 &
+cd web && npm run build && npx next start -p 3000 &
+cd ../e2e && npm i && npx playwright test
 ```
 
 ## LIMITATIONS — read this before trusting it

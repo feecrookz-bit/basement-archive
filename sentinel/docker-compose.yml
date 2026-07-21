@@ -53,7 +53,9 @@ services:
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8080
+      # server-side target for the /api/* rewrite proxy + RSC fetches;
+      # the browser itself only ever talks to this web origin
+      API_INTERNAL_URL: http://api:8080
     depends_on:
       - api
 

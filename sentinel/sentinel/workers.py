@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 import aiohttp
 
 from . import config as config_mod
-from . import db
+from . import db, notify
 from .bus import Bus
 from .data.ingest import BinanceRest, backfill, derivatives_overlay, kline_stream
 from .data.market import LiveMarket
@@ -128,6 +128,9 @@ class Supervisor:
                     self.halt_until = datetime.now(timezone.utc) + timedelta(hours=hours)
                     await self.ledger.insert_halt(halt["scope"], "imposed",
                                                   halt["reason"])
+                    await notify.send(
+                        title=f"⛔ {halt['scope'].upper()} CIRCUIT BREAKER",
+                        body=f"{halt['reason']}\nAll positions flattened.")
                 if self.halt_until and datetime.now(timezone.utc) >= self.halt_until:
                     if (await self.account_state()).weekly_pnl_pct > \
                             -self.cfg.get("risk.circuit_breakers.weekly_loss_pct", 5.0):
@@ -145,9 +148,22 @@ class Supervisor:
 
     async def coach_loop(self):
         last_daily = last_weekly = None
+        gate_notified = False
         while True:
             now = datetime.now(timezone.utc)
             try:
+                if not gate_notified:
+                    async with self.pool.acquire() as con:
+                        ready = await con.fetchval(
+                            "SELECT ready FROM v_paper_readiness")
+                    if ready:
+                        gate_notified = True
+                        await notify.send(
+                            title="🔓 Paper→live gate is OPEN",
+                            body=("30+ distinct paper-trade days logged. Live "
+                                  "still requires mode.live: true AND the CLI "
+                                  "confirmation flag — read the Coach's weekly "
+                                  "setup breakdown before deciding."))
                 if now.strftime("%H:%M") >= self.cfg.get("coach.daily_report_utc", "00:10") \
                         and last_daily != now.date():
                     await coach.run_report(self.pool, self.ledger, "daily")

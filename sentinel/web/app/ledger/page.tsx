@@ -14,7 +14,7 @@ export default async function Ledger() {
         is edited after the fact.
       </p>
       <Section title="Trades" tone="green">
-        <table>
+        <div className="tablewrap"><table>
           <thead>
             <tr>
               <th>Opened</th><th>Symbol</th><th>Setup</th><th>Mode</th>
@@ -55,11 +55,11 @@ export default async function Ledger() {
               </tr>
             )}
           </tbody>
-        </table>
+        </table></div>
       </Section>
 
       <Section title="Risk veto — rejected proposals">
-        <table>
+        <div className="tablewrap"><table>
           <thead>
             <tr><th>ts</th><th>Symbol</th><th>Setup</th><th>Reasons</th></tr>
           </thead>
@@ -80,7 +80,7 @@ export default async function Ledger() {
               <tr><td colSpan={4} className="muted">none yet</td></tr>
             )}
           </tbody>
-        </table>
+        </table></div>
       </Section>
     </>
   );

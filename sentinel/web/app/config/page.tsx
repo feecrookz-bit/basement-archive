@@ -31,7 +31,7 @@ export default async function ConfigPage() {
         )}
       </Section>
       <Section title="Version history">
-        <table>
+        <div className="tablewrap"><table>
           <thead><tr><th>id</th><th>loaded</th><th>hash</th></tr></thead>
           <tbody>
             {(data.versions || []).map((v: any) => (
@@ -42,7 +42,7 @@ export default async function ConfigPage() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </Section>
     </>
   );

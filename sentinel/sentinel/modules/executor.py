@@ -14,6 +14,7 @@ import logging
 from dataclasses import dataclass
 
 from .. import indicators as ind
+from .. import notify
 
 log = logging.getLogger("executor")
 
@@ -160,6 +161,14 @@ class Executor:
         await self.bus.publish("executor", "executor.opened",
                                {"trade_id": tid, "pair": proposal["pair"],
                                 "mode": self.mode})
+        mode_tag = "🔴 LIVE" if self.mode == "live" else f"🟡 {self.mode}"
+        conv = proposal.get("conviction")
+        agree = proposal.get("agreeing_setups") or [proposal.get("setup_type")]
+        await notify.send(
+            title=f"📈 OPEN {proposal['pair']} · {mode_tag}",
+            body=(f"{'+'.join(agree)} | conviction {conv if conv is not None else '—'}\n"
+                  f"entry {fill['price']:.6g} · stop {proposal['stop_price']:.6g} "
+                  f"· risk {sizing.get('risk_pct', '?')}%"))
 
     async def on_price(self, pair: str, price: float, candles_1h: list[dict]) -> None:
         for st in [s for s in self.open.values() if s.pair == pair]:
@@ -192,6 +201,13 @@ class Executor:
             await self.ledger.append_trade_event(
                 st.trade_id, t, -act["sell_qty"], fill["price"],
                 fill["fees_quote"], st.stop, act.get("r"))
+            emoji = {"PARTIAL_EXIT_TP1": "🟢", "PARTIAL_EXIT_TP2": "🟢🟢",
+                     "STOP_HIT": "🔴", "TRAIL_HIT": "🛡️"}[t]
+            await notify.send(
+                title=f"{emoji} {t.replace('_', ' ')} {st.pair}",
+                body=(f"{act.get('r', 0):+.2f}R @ {fill['price']:.6g} · "
+                      f"sold {act['sell_qty']:.6g} · "
+                      f"{'flat' if st.qty <= 0 else f'{st.qty:.6g} remaining'}"))
         elif t in ("STOP_TO_BREAKEVEN", "TRAIL_MOVED"):
             await self.ledger.append_trade_event(
                 st.trade_id, t, 0, None, 0, act["stop"], None)

@@ -1,8 +1,16 @@
 import "./globals.css";
 import { api } from "../lib/api";
 import { DotPill, fmt } from "../components/ui";
+import AutoRefresh, { LogoutButton } from "../components/AutoRefresh";
 
-export const metadata = { title: "Sentinel" };
+export const metadata = {
+  title: { default: "Sentinel", template: "%s · Sentinel" },
+  description: "Discipline-enforcement altcoin trading engine — paper-first, ledger-judged.",
+  icons: {
+    icon: "data:image/svg+xml," + encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#f5a623"/><text x="16" y="23" font-size="19" text-anchor="middle">⚡</text></svg>`),
+  },
+};
 export const dynamic = "force-dynamic";
 
 async function TopBar() {
@@ -44,6 +52,8 @@ async function TopBar() {
           <br />
           {now.toUTCString().slice(17, 25)} UTC
         </div>
+        <AutoRefresh />
+        <LogoutButton />
       </header>
       <div className={`modebar ${isLive ? "live" : "paper"}`}>
         {isLive

@@ -48,7 +48,10 @@ function PositionCard({ p }: { p: any }) {
 }
 
 export default async function Live() {
-  const data = await api<any>("/api/live");
+  const [data, activity] = await Promise.all([
+    api<any>("/api/live"),
+    api<any[]>("/api/activity?limit=15"),
+  ]);
   if (!data) return <p className="muted">API unreachable.</p>;
   const r = data.regime;
   const wl = data.watchlist?.entries || [];
@@ -132,7 +135,7 @@ export default async function Live() {
       </Section>
 
       <Section title="Signals panel — RS watchlist">
-        <table>
+        <div className="tablewrap"><table>
           <thead>
             <tr>
               <th>#</th><th>Symbol</th><th>RS</th><th>24h Vol</th><th>Bias</th><th>Flags</th>
@@ -170,7 +173,7 @@ export default async function Live() {
               <tr><td colSpan={6} className="muted">no snapshot yet</td></tr>
             )}
           </tbody>
-        </table>
+        </table></div>
       </Section>
 
       {!!data.ict?.length && (() => {
@@ -243,9 +246,26 @@ export default async function Live() {
         );
       })()}
 
+      {!!activity?.length && (
+        <Section title="Activity">
+          {activity.map((a: any, i: number) => (
+            <div className="feed-row" key={i} data-testid="activity-row">
+              <span className="feed-ts">
+                {String(a.ts).slice(11, 19) || String(a.ts).slice(0, 16)}
+              </span>
+              <Pill tone={a.module === "risk" ? "red" : a.module === "executor"
+                ? "green" : a.module === "regime" ? "amber" : "blue"}>
+                {a.module}
+              </Pill>
+              <span>{a.summary}</span>
+            </div>
+          ))}
+        </Section>
+      )}
+
       {!!data.recent_halts?.length && (
         <Section title="Halts">
-          <table>
+          <div className="tablewrap"><table>
             <thead><tr><th>ts</th><th>scope</th><th>action</th><th>reason</th></tr></thead>
             <tbody>
               {data.recent_halts.map((h: any, i: number) => (
@@ -257,7 +277,7 @@ export default async function Live() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </Section>
       )}
     </>
