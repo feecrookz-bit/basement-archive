@@ -9,7 +9,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import binance, config, db, discovery, paper, pumpfun, signals, wallets
+from . import (binance, config, db, discovery, helius_webhooks, paper, pumpfun,
+               signals, wallets)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 log = logging.getLogger("main")
@@ -23,6 +24,7 @@ async def lifespan(_app: FastAPI):
     _tasks.append(asyncio.create_task(discovery.run(signals.on_discovery)))
     _tasks.append(asyncio.create_task(wallets.run(signals.on_wallet_hit)))
     _tasks.append(asyncio.create_task(paper.monitor()))
+    _tasks.append(asyncio.create_task(helius_webhooks.sync("startup")))
     if config.BINANCE_ENABLED:
         _tasks.append(asyncio.create_task(binance.run()))
     if config.PUMPFUN_ENABLED:
@@ -78,12 +80,14 @@ async def add_wallet(req: Request):
             "ON CONFLICT (wallet) DO UPDATE SET label = EXCLUDED.label",
             wallet, body.get("label"),
         )
+    await helius_webhooks.sync("wallet added")
     return {"ok": True, "wallet": wallet}
 
 @app.delete("/api/wallets/{wallet}")
 async def del_wallet(wallet: str):
     async with db.pool().acquire() as con:
         await con.execute("DELETE FROM tracked_wallets WHERE wallet=$1", wallet)
+    await helius_webhooks.sync("wallet removed")
     return {"ok": True}
 
 @app.get("/api/paper")

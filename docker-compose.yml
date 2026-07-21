@@ -16,6 +16,10 @@ services:
   app:
     build: .
     env_file: .env
+    environment:
+      # pass through so webhook mode can auto-derive its public URL in Codespaces
+      - CODESPACE_NAME
+      - GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN
     ports:
       - "8000:8000"
     depends_on:

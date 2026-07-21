@@ -23,6 +23,9 @@ HELIUS_WS_URL = os.getenv("HELIUS_WS_URL", "wss://atlas-mainnet.helius-rpc.com")
 HELIUS_RPC_URL = os.getenv(
     "HELIUS_RPC_URL", "https://mainnet.helius-rpc.com"
 )
+# Public base URL for WALLET_MODE=webhook (free tier). Empty = auto-derive in
+# GitHub Codespaces from CODESPACE_NAME; otherwise required for webhook mode.
+WEBHOOK_PUBLIC_URL = os.getenv("WEBHOOK_PUBLIC_URL", "")
 
 # --- Signal gates (the rug filter) ---
 FRESH_HOURS = int(os.getenv("FRESH_HOURS", "24"))
