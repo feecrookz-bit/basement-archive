@@ -96,6 +96,14 @@ BINANCE_CMS_URL = os.getenv(
     "?catalogId=48&pageNo=1&pageSize=20",
 )
 
+# --- Rotation overlay (Method 6: BTC dominance macro tide) ---
+ROTATION_ENABLED = os.getenv("ROTATION_ENABLED", "true").lower() in {"1", "true", "yes"}
+ROTATION_POLL_SECONDS = int(os.getenv("ROTATION_POLL_SECONDS", "3600"))
+ROTATION_SHIFT_PP = _f("ROTATION_SHIFT_PP", "0.5")  # 24h pp move that flips the regime
+COINGECKO_GLOBAL_URL = os.getenv(
+    "COINGECKO_GLOBAL_URL", "https://api.coingecko.com/api/v3/global"
+)
+
 # --- Pump.fun graduation watcher ---
 PUMPFUN_ENABLED = os.getenv("PUMPFUN_ENABLED", "true").lower() in {"1", "true", "yes"}
 PUMPPORTAL_WS_URL = os.getenv("PUMPPORTAL_WS_URL", "wss://pumpportal.fun/api/data")

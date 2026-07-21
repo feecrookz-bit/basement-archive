@@ -106,6 +106,16 @@ CREATE TABLE IF NOT EXISTS binance_events (
     UNIQUE (token_address, event_type, title)
 );
 
+-- v2.3: BTC dominance snapshots for the Method-6 rotation overlay
+CREATE TABLE IF NOT EXISTS market_rotation (
+    id             BIGSERIAL PRIMARY KEY,
+    ts             TIMESTAMPTZ NOT NULL DEFAULT now(),
+    btc_dominance  DOUBLE PRECISION NOT NULL,
+    eth_dominance  DOUBLE PRECISION,
+    total_mcap_usd DOUBLE PRECISION
+);
+CREATE INDEX IF NOT EXISTS idx_rotation_ts ON market_rotation (ts DESC);
+
 -- v2.2: pump.fun graduations and the dump->reclaim state machine
 CREATE TABLE IF NOT EXISTS graduations (
     token_address TEXT PRIMARY KEY,

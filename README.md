@@ -113,7 +113,7 @@ tighten the filter when the data exists, and every rejection lands in
 `fail_reasons` like the rest. Moonshot gates are unchanged: heat filters
 would contradict quiet accumulation.
 
-## Binance events (v2.2)
+## Binance events (v2.2, extended v2.3)
 A watcher polls Binance Alpha's public token list and (best-effort) the
 listing-announcements feed, and alerts when a token we discovered,
 signalled, or hold in the paper ledger gets a Binance touchpoint —
@@ -122,6 +122,21 @@ The alert says "consider securing profits", not "buy": listing pumps are
 classically sell-the-news, and distribution follows the spike. Events are
 recorded in `binance_events` (`/api/binance`). This flags exit windows;
 it does not predict them.
+
+v2.3 classifies announcements (`listing` / `delisting` / `launchpool` /
+`hodler_airdrop`). **Launchpool and HODLer-Airdrop events alert
+unconditionally** — they're the rare, passive-capital windows (stake,
+farm, sell the emission into listing-day hype) that don't depend on our
+token list. Delistings of tracked tokens alert with exit-now framing.
+
+## Rotation overlay (v2.3)
+An hourly BTC-dominance snapshot (CoinGecko global API, keyless) drives a
+three-state macro read shown on the dashboard: `RISK_OFF` (BTC.D rising ≥
+`ROTATION_SHIFT_PP` pp/24h — money hiding up the quality curve, long tail
+bleeds), `ALT_ROTATION` (BTC.D falling — the historical alt-season tell),
+or `NEUTRAL`. Alerts fire only on regime *changes*. `/api/rotation`
+serves the read. Data only, never a trade — and remember the long tail
+going vertical is itself the classic cycle-top signal.
 
 ## Graduation plays (v2.2)
 PumpPortal's free WebSocket seeds pump.fun launches into discovery
