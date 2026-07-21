@@ -36,6 +36,9 @@ def fixture_series():
 @pytest.mark.asyncio
 async def test_ict_flows_through_analyst_risk_executor(cfg):
     cfg._tree.setdefault("ict", {})["min_rr"] = 1.0  # fixture targets are close
+    # timing discipline is pinned separately (test_killzone_gate_*); this
+    # test exercises the pipeline itself
+    cfg._tree["ict"]["killzones"] = {"enabled": False}
     series = fixture_series()
     market = ReplayMarket(series)
     market.set_now_ms(series[("ALT/USDT", "15m")][-1]["ts"])
@@ -89,3 +92,56 @@ async def test_ict_disabled_produces_nothing(cfg):
                                {"id": 1, "entries": [{"pair": "ALT/USDT",
                                 "flags": {}, "rs_decile": 5}]})
     assert [p for p in props if p["setup_type"] == "ict"] == []
+
+def _kz_window_for(ts_ms: int, inside: bool) -> dict:
+    """A killzone window that does (or does not) contain the replay clock."""
+    from datetime import datetime, timedelta, timezone
+    now = datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc)
+    start = now - timedelta(minutes=30) if inside else now + timedelta(hours=2)
+    end = start + timedelta(hours=1)
+    return {"start": start.strftime("%H:%M"), "end": end.strftime("%H:%M")}
+
+
+@pytest.mark.asyncio
+async def test_killzone_gate_blocks_outside_window(cfg):
+    cfg._tree.setdefault("ict", {})["min_rr"] = 1.0
+    series = fixture_series()
+    now_ms = series[("ALT/USDT", "15m")][-1]["ts"]
+    cfg._tree["ict"]["killzones"] = {
+        "enabled": True, "windows": {"kz": _kz_window_for(now_ms, inside=False)}}
+    market = ReplayMarket(series)
+    market.set_now_ms(now_ms)
+    ledger = MemoryLedger()
+    bus = Bus(redis=None, pool=None, persist=False)
+    regime_snap = {"id": await ledger.insert_regime(
+        {"btc_state": "RANGING", "trading_allowed": True}),
+        "trading_allowed": True}
+    watchlist = {"id": 1, "entries": [{"pair": "ALT/USDT", "rs_decile": 5,
+                                       "flags": {"unlock_blacklist": False}}]}
+    props = await analyst.scan(market, ledger, bus, cfg, regime_snap, watchlist)
+    assert [p for p in props if p["setup_type"] == "ict"] == []
+    # levels still get marked while observing — snapshots written regardless
+    assert getattr(ledger, "ict_snapshots", [])
+
+
+@pytest.mark.asyncio
+async def test_killzone_gate_allows_and_tags_inside_window(cfg):
+    cfg._tree.setdefault("ict", {})["min_rr"] = 1.0
+    series = fixture_series()
+    now_ms = series[("ALT/USDT", "15m")][-1]["ts"]
+    cfg._tree["ict"]["killzones"] = {
+        "enabled": True, "windows": {"kz": _kz_window_for(now_ms, inside=True)}}
+    market = ReplayMarket(series)
+    market.set_now_ms(now_ms)
+    ledger = MemoryLedger()
+    bus = Bus(redis=None, pool=None, persist=False)
+    regime_snap = {"id": await ledger.insert_regime(
+        {"btc_state": "RANGING", "trading_allowed": True}),
+        "trading_allowed": True}
+    watchlist = {"id": 1, "entries": [{"pair": "ALT/USDT", "rs_decile": 5,
+                                       "flags": {"unlock_blacklist": False}}]}
+    props = await analyst.scan(market, ledger, bus, cfg, regime_snap, watchlist)
+    ict_props = [p for p in props if p["setup_type"] == "ict"]
+    assert ict_props, "ICT should fire inside its kill zone"
+    kz_ev = ict_props[0]["evidence"]["killzone"]
+    assert kz_ev["active"] is True and kz_ev["zone"] == "kz"

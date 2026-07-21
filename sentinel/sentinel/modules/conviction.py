@@ -91,6 +91,9 @@ def rank(proposals: list[dict], expectancy: dict, cfg) -> list[dict]:
         conv = score(agreeing, expectancy, cfg)
         primary = dict(_primary(props))
         ev = dict(primary.get("evidence") or {})
+        if ICT in agreeing:
+            from .ict import killzone as kz
+            conv = round(conv * kz.golden_multiplier(ev, cfg), 4)
         ev["conviction"] = conv
         ev["agreeing_setups"] = sorted(set(agreeing))
         ev["setup_expectancy"] = {s: round(expectancy.get(s, 1.0), 3)

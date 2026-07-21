@@ -91,6 +91,33 @@ Exits are mechanical for all setups: 50% off at 1.5R and stop to
 breakeven, 25% at 2.5R, remainder trailed on the 1h swing low. The
 dashboard has no override buttons on purpose.
 
+### Kill zones (v3.3 — "the patience IS the edge")
+
+ICT entries are only taken inside configured **kill-zone windows**
+(`ict.killzones`, default London KZ 07:00–10:00 UTC + NY-AM follow-through
+13:30–15:00 UTC). Outside them the agent still marks levels and writes
+snapshots — it observes, it does not buy. The three **macro windows**
+inside London are tracked and recorded in evidence; a golden-window entry
+(07:33–08:00 UTC, where most sweeps/reversals cluster) earns a small,
+clamped conviction bonus (`golden_bonus`, default 0.15, hard-capped 0.5).
+The gate runs on `market.now()`, so backtests replay the identical
+discipline. Disable with `ict.killzones.enabled: false` for 24/7 crypto
+mode. The Live page shows the KZ clock plus an **automated pre-session
+checklist** (bias set, Asian range + PDH/PDL marked, news clear, alerts
+configured, timing) — the mechanical version of the pre-London checklist;
+sleep and tilt remain your job.
+
+### Psychology, compiled out
+
+The classic "5 emotional enemies" each have a mechanical control here,
+which is the point of the whole machine: **fear** → entries are rule-fired
+or not at all; **greed** → size comes from the stop-distance formula and
+the overtrading governor caps entries; **FOMO** → gates and kill zones,
+no chase path exists; **revenge** → circuit breakers halt after losses,
+the weekly one demands a typed justification; **hope** → stops are hard
+and the exit ladder is not editable from the UI. Zero trades is a valid
+result, and the flat state is the default.
+
 ## Conviction engine (v3 — edge quality, not aggression)
 
 Between the Analyst and the Risk veto sits a conviction layer that decides

@@ -49,6 +49,17 @@ Exits are mechanical for all setups: **50% off at 1.5R + stop to
 breakeven, 25% at 2.5R, remainder trailed on the 1h swing low.** The
 dashboard has no override buttons on purpose.
 
+**Kill zones** (session-timing discipline): ICT entries only fire inside
+configured windows — London KZ (07:00–10:00 UTC, the money zone) and the
+NY-AM follow-through (13:30–15:00 UTC). The Asian session is observation
+only: ranges get marked, nothing gets bought. The three London macro
+windows are tracked (07:00–07:15 first-sweep, **07:33–08:00 golden** —
+where most sweeps/reversals cluster, 09:00–09:15 last-chance) and a
+golden-window entry earns a small clamped conviction bonus. Five hours of
+opportunity, nineteen of patience — and the patience is enforced in code,
+not willpower. The Live page shows the KZ clock and an automated
+pre-session checklist (bias, marked levels, news, alerts, timing).
+
 ## Layer 4 — Conviction: edge quality, not aggression
 
 Between Analyst and Risk sits the v3 conviction engine. For each pair,

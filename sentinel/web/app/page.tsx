@@ -86,6 +86,56 @@ export default async function Live() {
         )}
       </Section>
 
+      {data.killzone && (
+        <Section
+          title="Kill zones — session discipline"
+          tone={data.killzone.active ? "green" : undefined}
+        >
+          <p style={{ margin: 0 }} data-testid="killzone-status">
+            {!data.killzone.enabled ? (
+              <Pill tone="amber">DISABLED — trading 24/7</Pill>
+            ) : data.killzone.active ? (
+              <>
+                <Pill tone="green">KZ ACTIVE · {data.killzone.zone}</Pill>{" "}
+                {data.killzone.macro_window && (
+                  <Pill tone={data.killzone.macro_window === "golden" ? "amber" : "blue"}>
+                    {data.killzone.macro_window === "golden"
+                      ? "★ GOLDEN WINDOW"
+                      : data.killzone.macro_window.toUpperCase()}
+                  </Pill>
+                )}
+              </>
+            ) : (
+              <>
+                <Pill>WAITING</Pill>{" "}
+                <span className="muted">
+                  ICT observes only — next window opens{" "}
+                  <span className="num">{data.killzone.next_open_utc} UTC</span>.
+                  The patience is the edge.
+                </span>
+              </>
+            )}
+          </p>
+          {data.checklist && (
+            <div className="stats" style={{ marginTop: 10 }}>
+              {Object.entries(data.checklist).map(([k, ok]: [string, any]) => (
+                <Stat
+                  key={k}
+                  label={k.replace(/_/g, " ")}
+                  value={ok ? "✓" : "✗"}
+                  tone={ok ? "green" : "red"}
+                />
+              ))}
+            </div>
+          )}
+          <p className="muted" style={{ marginBottom: 0 }}>
+            The pre-session checklist, automated — bias, marked levels, news,
+            alerts, timing. Human factors (sleep, tilt, revenge) are yours;
+            everything mechanical is enforced here.
+          </p>
+        </Section>
+      )}
+
       {data.setup_trust && Object.keys(data.setup_trust).length > 0 && (
         <Section title="Setup trust — the ledger self-tuner">
           <div className="stats">

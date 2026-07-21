@@ -38,6 +38,9 @@ test("Live page renders seeded panels + activity feed", async ({ page }) => {
   await expect(page.getByText("×2 confluence").first()).toBeVisible();
   // setup trust self-tuner
   await expect(page.getByText("Setup trust — the ledger self-tuner").first()).toBeVisible();
+  // kill-zone clock + automated pre-session checklist
+  await expect(page.getByTestId("killzone-status")).toBeVisible();
+  await expect(page.getByText("bias set").first()).toBeVisible();
   // ICT sessions panel
   await expect(page.getByText("Sessions — SOL/USDT").first()).toBeVisible();
   // activity feed from the event bus

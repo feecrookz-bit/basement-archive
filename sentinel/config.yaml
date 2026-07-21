@@ -140,6 +140,16 @@ ict:                             # setup class #4 — the ICT agent (v2 amendmen
   smt_reference: "BTC/USDT"
   require_mss: true              # demand a structure shift after the sweep
   max_zone_age_candles: 48
+  killzones:                     # session-timing discipline: "the patience IS the edge"
+    enabled: true                # outside a KZ the ICT agent marks levels, takes nothing
+    windows:                     # UTC. London KZ ~= 2-5 AM New York; NY-AM follows London
+      london: { start: "07:00", end: "10:00" }
+      ny_am:  { start: "13:30", end: "15:00" }
+    macro_windows:               # tracked inside London; recorded in evidence
+      macro1: { start: "07:00", end: "07:15" }   # first sweep possible
+      golden: { start: "07:33", end: "08:00" }   # most sweeps/reversals happen here
+      macro3: { start: "09:00", end: "09:15" }   # last chance, lower RR
+    golden_bonus: 0.15           # bounded conviction multiplier for golden-window entries
 
 # -----------------------------------------------------------------------------
 risk:                            # module 4 — the veto; proposals propose, risk disposes
