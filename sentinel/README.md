@@ -58,7 +58,13 @@ Anything less silently runs paper. This is enforced in code
 - **No martingale, no averaging down, no doubling after losses.** Not
   configurable. Requests to add them will be refused.
 
-## Setups (exactly three)
+## Setups (three momentum-family + the ICT class)
+
+> v2 amendment: the original spec said "exactly three setups". The ICT
+> agent below was added deliberately as a config-gated fourth class
+> (`ict.enabled`) — it changes nothing about the pipeline: same Risk
+> veto, same paper ledger, and the Coach measures it against the other
+> three. If its ledger section stays red, disable it in config.
 
 - **Range play** — ≥3 touches each side over ≥48h; limit at range low +
   buffer; invalidation = close below range low; target = range high.
@@ -68,9 +74,22 @@ Anything less silently runs paper. This is enforced in code
 - **RS momentum** — top-decile RS pair, uptrend structure, pullback to 1h
   20 EMA with stochRSI reset, entry on reclaim; invalidation = structure low.
 
-Exits are mechanical for all three: 50% off at 1.5R and stop to breakeven,
-25% at 2.5R, remainder trailed on the 1h swing low. The dashboard has no
-override buttons on purpose.
+- **ICT agent** (15m) — the full bullish ICT sequence, every stage
+  mandatory: sell-side **liquidity sweep** of a key low (session low, PDL,
+  or equal-lows pool; wick below + close back above — a close below is a
+  breakdown, not a sweep), **displacement** up leaving a fresh bullish
+  FVG, **MSS** confirm (close above the pre-sweep swing high), then entry
+  only on the **retrace into FVG ∩ OTE (62–79%)** or the displacement's
+  order block — never the displacement candle itself. Stop below the
+  sweep low; target = nearest resting buy-side liquidity (session high /
+  PDH / PWH); R:R floor `ict.min_rr`. SMT divergence vs BTC is recorded
+  as confluence evidence. Long-only, like everything here. The dashboard
+  shows the ICT map: sessions with swept flags, PDH/PDL hits, and fresh
+  FVG/OB zones.
+
+Exits are mechanical for all setups: 50% off at 1.5R and stop to
+breakeven, 25% at 2.5R, remainder trailed on the 1h swing low. The
+dashboard has no override buttons on purpose.
 
 ## Backtest
 

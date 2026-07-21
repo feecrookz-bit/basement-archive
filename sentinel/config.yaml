@@ -98,6 +98,24 @@ analyst:                         # module 3 — exactly three setups, no more
       invalidation: structure_low_break
 
 # -----------------------------------------------------------------------------
+ict:                             # setup class #4 — the ICT agent (v2 amendment to
+  enabled: true                  # "exactly three setups"; long-only, same veto/ledger)
+  timeframe: "15m"
+  sessions:                      # UTC windows
+    asia:    { start: "00:00", end: "08:00" }
+    london:  { start: "07:00", end: "12:00" }
+    newyork: { start: "12:30", end: "20:00" }
+  displacement_atr_mult: 1.5     # candle body >= this x ATR = displacement
+  fvg_min_atr_frac: 0.25         # ignore gaps smaller than this fraction of ATR
+  ote: [0.62, 0.79]              # optimal trade entry retracement band
+  equal_lows_tol_pct: 0.15       # pivot lows within this % cluster as liquidity
+  sweep_lookback_candles: 96     # 24h of 15m candles
+  min_rr: 2.0                    # reject entries with worse first-target R:R
+  smt_reference: "BTC/USDT"
+  require_mss: true              # demand a structure shift after the sweep
+  max_zone_age_candles: 48
+
+# -----------------------------------------------------------------------------
 risk:                            # module 4 — the veto; proposals propose, risk disposes
   risk_per_trade_pct: 0.75       # size = equity * this / (entry - stop). Stop drives size.
   max_concurrent_positions: 3

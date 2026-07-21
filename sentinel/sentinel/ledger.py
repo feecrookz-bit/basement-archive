@@ -92,6 +92,16 @@ class MemoryLedger:
                              "range_from": range_from, "range_to": range_to,
                              "metrics": metrics, "narrative": narrative})
 
+    async def insert_ict_snapshot(self, pair: str, session_state: dict,
+                                  levels: dict, zones: dict,
+                                  config_version_id) -> None:
+        if not hasattr(self, "ict_snapshots"):
+            self.ict_snapshots = []
+        self.ict_snapshots.append({"ts": _now(), "pair": pair,
+                                   "session_state": session_state,
+                                   "levels": levels, "zones": zones,
+                                   "config_version_id": config_version_id})
+
 
 class PgLedger:
     """asyncpg-backed ledger; same surface as MemoryLedger."""
@@ -201,4 +211,15 @@ class PgLedger:
                 "VALUES ($1,$2,$3,$4::jsonb,$5)",
                 period, range_from, range_to,
                 json.dumps(metrics, default=str), narrative,
+            )
+
+    async def insert_ict_snapshot(self, pair, session_state, levels, zones,
+                                  config_version_id) -> None:
+        async with self.pool.acquire() as con:
+            await con.execute(
+                "INSERT INTO ict_snapshots (pair, session_state, levels, zones, "
+                "config_version_id) VALUES ($1,$2::jsonb,$3::jsonb,$4::jsonb,$5)",
+                pair, json.dumps(session_state, default=str),
+                json.dumps(levels, default=str),
+                json.dumps(zones, default=str), config_version_id,
             )

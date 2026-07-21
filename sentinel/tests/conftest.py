@@ -82,6 +82,53 @@ def breakout_series(pre=80, resistance=110.0, post_break=6, start=T0,
     return out
 
 
+M15 = 900_000
+
+
+def sweep_displacement_series(n_range=60, low=100.0, high=103.0, start=T0,
+                              do_sweep=True, do_displace=True,
+                              retrace_to_ote=True, tf_ms=M15):
+    """15m ICT fixture: a coiling range with equal lows at `low`, then a
+    sweep (wick below, close back above), a displacement leg leaving a
+    bullish FVG + MSS, then a retrace whose last close sits in the 62–79%
+    OTE band. Each stage can be disabled to test the negative paths."""
+    out = []
+    for i in range(n_range):
+        phase = i % 6
+        if phase in (0, 3):   # tag the equal lows
+            out.append(candle(start + i * tf_ms, low + 0.6, low + 0.9,
+                              low + 0.002, low + 0.4, v=800))
+        elif phase == 1:      # tag the range high
+            out.append(candle(start + i * tf_ms, high - 0.6, high - 0.001,
+                              high - 0.9, high - 0.4, v=800))
+        else:
+            mid = (low + high) / 2
+            out.append(candle(start + i * tf_ms, mid, mid + 0.4, mid - 0.4,
+                              mid + (0.1 if i % 2 else -0.1), v=800))
+    t = start + n_range * tf_ms
+    i = 0
+    if do_sweep:              # wick through the lows, close back above
+        out.append(candle(t + i * tf_ms, low + 0.3, low + 0.5, low - 0.8,
+                          low + 0.45, v=2500)); i += 1
+    if do_displace:           # 3 candles: up, DISPLACEMENT (leaves FVG + MSS), up
+        out.append(candle(t + i * tf_ms, low + 0.45, low + 1.0, low + 0.4,
+                          low + 0.95, v=1500)); i += 1
+        out.append(candle(t + i * tf_ms, low + 0.95, high + 1.4, low + 0.9,
+                          high + 1.3, v=3000)); i += 1   # big body, close > range high
+        out.append(candle(t + i * tf_ms, high + 1.3, high + 1.6, high + 1.1,
+                          high + 1.5, v=1200)); i += 1
+    if retrace_to_ote:        # drift down into the 62-79% band of the leg
+        leg_low, leg_high = low - 0.8, high + 1.6
+        target = leg_high - 0.70 * (leg_high - leg_low)  # ~70% retrace
+        px = high + 1.5
+        for k in range(4):
+            nxt = px - (px - target) * 0.6 if k < 3 else target
+            out.append(candle(t + i * tf_ms, px, px + 0.1, nxt - 0.05, nxt,
+                              v=700)); i += 1
+            px = nxt
+    return out
+
+
 @pytest.fixture
 def cfg(tmp_path):
     src = Path(__file__).resolve().parent.parent / "config.yaml"

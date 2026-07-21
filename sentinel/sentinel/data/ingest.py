@@ -82,8 +82,9 @@ class BinanceRest:
 
 
 async def backfill(redis, rest: BinanceRest, symbols: list[str],
-                   tfs: tuple[str, ...] = ("1h", "4h"), days: int = 14) -> None:
-    per_tf = {"1h": days * 24, "4h": days * 6}
+                   tfs: tuple[str, ...] = ("15m", "1h", "4h"),
+                   days: int = 14) -> None:
+    per_tf = {"15m": min(days, 10) * 96, "1h": days * 24, "4h": days * 6}
     for sym in symbols:
         for tf in tfs:
             try:

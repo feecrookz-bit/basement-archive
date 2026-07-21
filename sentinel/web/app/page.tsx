@@ -148,6 +148,76 @@ export default async function Live() {
         </table>
       </Section>
 
+      {!!data.ict?.length && (() => {
+        const first = data.ict[0];
+        const sess = first?.session_state || {};
+        const lv = first?.levels || {};
+        return (
+          <div className="grid">
+            <Section title={`Sessions — ${first.pair}`} tone="amber">
+              {["asia", "london", "newyork"].map((n) => {
+                const s = sess[n] || {};
+                return (
+                  <div className="poscard" key={n}>
+                    <div className="row1">
+                      <b style={{ textTransform: "uppercase" }}>{n}</b>
+                      <Pill tone={s.status === "open" ? "green" : ""}>
+                        {s.status || "waiting"}
+                      </Pill>
+                      {s.high_swept && <Pill tone="amber">H SWEPT</Pill>}
+                      {s.low_swept && <Pill tone="amber">L SWEPT</Pill>}
+                    </div>
+                    <p className="muted" style={{ margin: "6px 0 0" }}>
+                      H {s.high != null ? fmt(s.high, 4) : "—"} · L{" "}
+                      {s.low != null ? fmt(s.low, 4) : "—"}
+                    </p>
+                  </div>
+                );
+              })}
+              <p className="muted" style={{ marginBottom: 0 }}>
+                PDH <span className="num">{lv.pdh != null ? fmt(lv.pdh, 4) : "—"}</span>
+                {lv.pdh_hit && <Pill tone="green">HIT</Pill>} · PDL{" "}
+                <span className="num">{lv.pdl != null ? fmt(lv.pdl, 4) : "—"}</span>
+                {lv.pdl_hit && <Pill tone="red">HIT</Pill>}
+              </p>
+            </Section>
+            <Section title="OB / FVG — fresh zones" tone="amber">
+              {data.ict.flatMap((row: any) =>
+                [...(row.zones?.fvgs || []).map((g: any, i: number) => (
+                  <div className="poscard" key={`${row.pair}-g${i}`}>
+                    <div className="row1">
+                      <Pill tone="green">BULL</Pill>
+                      <Pill tone="blue">FVG</Pill>
+                      <b>{row.pair}</b>
+                    </div>
+                    <p className="muted" style={{ margin: "6px 0 0" }}>
+                      HIGH {fmt(g.high, 4)} · LOW {fmt(g.low, 4)} · MID{" "}
+                      {fmt((Number(g.high) + Number(g.low)) / 2, 4)}
+                    </p>
+                  </div>
+                )),
+                ...(row.zones?.order_blocks || []).map((o: any, i: number) => (
+                  <div className="poscard" key={`${row.pair}-o${i}`}>
+                    <div className="row1">
+                      <Pill tone="green">BULL</Pill>
+                      <Pill tone="amber">OB</Pill>
+                      <b>{row.pair}</b>
+                    </div>
+                    <p className="muted" style={{ margin: "6px 0 0" }}>
+                      HIGH {fmt(o.high, 4)} · LOW {fmt(o.low, 4)}
+                    </p>
+                  </div>
+                ))]
+              )}
+              {!data.ict.some((r: any) =>
+                (r.zones?.fvgs?.length || 0) + (r.zones?.order_blocks?.length || 0) > 0) && (
+                <p className="muted" style={{ margin: 0 }}>no fresh zones</p>
+              )}
+            </Section>
+          </div>
+        );
+      })()}
+
       {!!data.recent_halts?.length && (
         <Section title="Halts">
           <table>
