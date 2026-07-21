@@ -38,6 +38,9 @@ test("Live page renders seeded panels + activity feed", async ({ page }) => {
   await expect(page.getByText("×2 confluence").first()).toBeVisible();
   // setup trust self-tuner
   await expect(page.getByText("Setup trust — the ledger self-tuner").first()).toBeVisible();
+  // kill-zone clock + automated pre-session checklist
+  await expect(page.getByTestId("killzone-status")).toBeVisible();
+  await expect(page.getByText("bias set").first()).toBeVisible();
   // ICT sessions panel
   await expect(page.getByText("Sessions — SOL/USDT").first()).toBeVisible();
   // activity feed from the event bus
@@ -65,6 +68,16 @@ test("Performance shows scoreboard and equity curve", async ({ page }) => {
   await expect(page.getByText("Scoreboard").first()).toBeVisible();
   await expect(page.getByText("52.4%").first()).toBeVisible();
   await expect(page.locator("svg path").first()).toBeVisible();
+});
+
+test("Memos page shows approved, watchlist and rejected verdicts", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/memos");
+  await expect(page.getByTestId("memo-card").first()).toBeVisible();
+  await expect(page.getByText("APPROVED — trade executed").first()).toBeVisible();
+  await expect(page.getByText("WATCHLIST — good setup, no capacity").first()).toBeVisible();
+  await expect(page.getByText("REJECTED — do not trade").first()).toBeVisible();
+  await expect(page.getByText("volatility_extreme:99pctile").first()).toBeVisible();
 });
 
 test("Config is read-only with version history", async ({ page }) => {

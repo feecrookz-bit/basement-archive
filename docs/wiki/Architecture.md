@@ -89,7 +89,8 @@ dashboard on :8000; Sentinel a Next.js app on :3000 (server components
 fetch the API with cookie forwarding, auto-refresh every 15 s). Sentinel's
 pages: Live (regime, positions with SL→TP bars, watchlist, ICT map,
 activity), Ledger (trades + evidence + risk vetoes), Performance
-(scoreboard, equity curve, coach narratives), Config (versions).
+(scoreboard, equity curve, coach narratives), Memos (one clear
+APPROVED/WATCHLIST/REJECTED verdict per proposal), Config (versions).
 
 ## Testing & CI
 

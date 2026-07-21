@@ -19,6 +19,7 @@ from sentinel import config as cfgmod  # noqa: E402
 from sentinel import db  # noqa: E402
 from sentinel.bus import Bus  # noqa: E402
 from sentinel.ledger import PgLedger  # noqa: E402
+from sentinel.modules import memo as memo_mod  # noqa: E402
 
 
 async def main():
@@ -67,22 +68,28 @@ async def main():
         cfg.version_id)
 
     async def trade(pair, setup, entry, stop, tgt, conv, agree, events,
-                    reject=None):
-        pid = await L.insert_proposal({
+                    reject=None, with_memo=False):
+        rr = round((tgt - entry) / (entry - stop), 2)
+        pdict = {
             "pair": pair, "setup_type": setup, "side": "long",
             "entry_price": entry, "stop_price": stop,
-            "targets": [{"price": tgt,
-                         "r_multiple": round((tgt - entry) / (entry - stop), 2)}],
+            "targets": [{"price": tgt, "r_multiple": rr}],
             "evidence": {"conviction": conv, "agreeing_setups": agree,
-                         "rr_first_target": round((tgt - entry) / (entry - stop), 2)},
+                         "rr_first_target": rr},
             "regime_snapshot_id": rid, "watchlist_id": wl,
-            "config_version_id": cfg.version_id})
+            "config_version_id": cfg.version_id}
+        pid = await L.insert_proposal(pdict)
         await bus.publish("analyst", "analyst.proposal",
                           {"pair": pair, "setup_type": setup})
         if reject:
             await L.insert_decision(pid, "rejected", reject, None)
             await bus.publish("risk", "risk.rejected",
                               {"proposal": {"pair": pair}, "reasons": reject})
+            if with_memo:
+                verdict = {"decision": "rejected", "reject_reasons": reject,
+                           "sizing": None}
+                await bus.publish("risk", "decision.memo",
+                                  memo_mod.compose(pdict, verdict, cfg))
             return
         risk_pct = 0.75 * min(1.5, max(0.8, conv / 1.5))
         sizing = {"qty": round(10000 * risk_pct / 100 / (entry - stop), 6),
@@ -91,6 +98,11 @@ async def main():
         await L.insert_decision(pid, "accepted", None, sizing)
         await bus.publish("risk", "risk.accepted",
                           {"proposal": {"pair": pair}, "sizing": sizing})
+        if with_memo:
+            verdict = {"decision": "accepted", "reject_reasons": None,
+                       "sizing": sizing}
+            await bus.publish("risk", "decision.memo",
+                              memo_mod.compose(pdict, verdict, cfg))
         tid = await L.open_trade(pid, pair, setup, "paper", cfg.version_id)
         await L.append_trade_event(tid, "OPENED", sizing["qty"], entry,
                                    entry * sizing["qty"] * 0.001, stop, 0.0,
@@ -104,9 +116,10 @@ async def main():
     await trade("SOL/USDT", "ict", 178.4, 176.8, 183.2, 4.38,
                 ["ict", "rs_momentum"],
                 [("PARTIAL_EXIT_TP1", -2.0, 181.2, 178.4, 1.5),
-                 ("STOP_TO_BREAKEVEN", 0, None, 178.4, None)])
+                 ("STOP_TO_BREAKEVEN", 0, None, 178.4, None)],
+                with_memo=True)
     await trade("SUI/USDT", "breakout_retest", 3.62, 3.47, 3.92, 2.8,
-                ["breakout_retest", "range_play"], [])
+                ["breakout_retest", "range_play"], [], with_memo=True)
     # closed history so setup_trust has signal
     for i in range(10):
         await trade(f"W{i}/USDT", "ict", 100, 95, 110, 1.9, ["ict"],
@@ -118,9 +131,18 @@ async def main():
                     ["rs_momentum"],
                     [("STOP_HIT", -15, 47.9, 48, -1.05),
                      ("CLOSED", 0, 47.9, 48, -1.05)])
-    # a rejected proposal for the veto table
+    # a rejected proposal for the veto table (capacity cap -> WATCHLIST memo)
     await trade("AVAX/USDT", "range_play", 29.5, 29.2, 31.0, 0.9,
-                ["range_play"], [], reject=["sector_cap:L1"])
+                ["range_play"], [], reject=["sector_cap:L1"], with_memo=True)
+    # a quality fail -> REJECTED memo
+    await trade("DOGE/USDT", "rs_momentum", 0.31, 0.302, 0.34, 1.1,
+                ["rs_momentum"], [],
+                reject=["volatility_extreme:99pctile"], with_memo=True)
+    # a news event for the activity feed
+    await bus.publish("news", "news.announcement",
+                      {"title": "Binance Will Add SUI on Launchpool",
+                       "category": "launchpool", "pairs": ["SUI"],
+                       "url": None})
 
     base = datetime(2026, 7, 1, tzinfo=timezone.utc)
     for d in range(21):

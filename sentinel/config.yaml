@@ -140,6 +140,16 @@ ict:                             # setup class #4 — the ICT agent (v2 amendmen
   smt_reference: "BTC/USDT"
   require_mss: true              # demand a structure shift after the sweep
   max_zone_age_candles: 48
+  killzones:                     # session-timing discipline: "the patience IS the edge"
+    enabled: true                # outside a KZ the ICT agent marks levels, takes nothing
+    windows:                     # UTC. London KZ ~= 2-5 AM New York; NY-AM follows London
+      london: { start: "07:00", end: "10:00" }
+      ny_am:  { start: "13:30", end: "15:00" }
+    macro_windows:               # tracked inside London; recorded in evidence
+      macro1: { start: "07:00", end: "07:15" }   # first sweep possible
+      golden: { start: "07:33", end: "08:00" }   # most sweeps/reversals happen here
+      macro3: { start: "09:00", end: "09:15" }   # last chance, lower RR
+    golden_bonus: 0.15           # bounded conviction multiplier for golden-window entries
 
 # -----------------------------------------------------------------------------
 risk:                            # module 4 — the veto; proposals propose, risk disposes
@@ -159,6 +169,8 @@ risk:                            # module 4 — the veto; proposals propose, ris
     weekly_loss_pct: 5.0         # => halt until manual restart WITH typed reason (logged)
   overtrading_governor:
     max_new_entries_per_24h: 4
+  max_atr_percentile: 98         # explicit volatility check: an ATR spike between
+  # regime ticks must not slip a new entry through (reject: volatility_extreme)
   # No martingale, no averaging down, no doubling after losses — not configurable,
   # not implemented, refuse if asked.
 
@@ -178,9 +190,14 @@ coach:                           # module 5b — the feedback loop that matters
   metrics: [win_rate, avg_r, expectancy, profit_factor, max_drawdown,
             by_setup, by_regime, by_pair, rejected_proposal_review]
 
+news:                            # announcement monitoring — data + alerts, never a signal
+  enabled: true
+  poll_minutes: 30               # delistings notify exit-now; launchpool/airdrop windows
+                                 # always notify; other news only if it touches our pairs
+
 dashboard:
   mode_banner: unmissable        # PAPER = amber, LIVE = red, always visible
-  pages: [live, ledger, performance, config]
+  pages: [live, ledger, performance, memos, config]
   config_page: read_only
 
 ingestion:

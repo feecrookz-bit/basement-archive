@@ -145,6 +145,13 @@ td.num { color: var(--amber); font-weight: 600; }
 .feed-row { display: flex; gap: 10px; align-items: baseline; padding: 6px 0;
   border-bottom: 1px solid var(--border); font-size: 12.5px; }
 .feed-row:last-child { border-bottom: none; }
+
+/* decision memos */
+.memo-rows { margin-top: 8px; display: flex; flex-direction: column; }
+.memo-row { display: flex; gap: 12px; align-items: baseline; padding: 5px 0;
+            border-top: 1px dashed var(--border); flex-wrap: wrap; }
+.memo-row .lbl { min-width: 150px; font-size: 11px; letter-spacing: 1px;
+                 color: var(--dim); }
 .feed-ts { color: var(--dim); font-size: 11px; min-width: 58px; }
 
 /* tables scroll on narrow screens instead of overflowing the page */

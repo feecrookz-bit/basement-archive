@@ -7,6 +7,7 @@ decides whether ICT earns, not the aesthetics of the chart."""
 import json
 import logging
 
+from . import killzone as kz
 from . import sessions as sx
 from . import setup as ict_setup
 
@@ -27,6 +28,11 @@ async def scan(market, ledger, bus, cfg, regime_snap: dict,
         return []
     tf = cfg.get("ict.timeframe", "15m")
     now = market.now()
+    kz_state = kz.state(now, cfg)
+    gate_open = kz.entries_allowed(now, cfg)
+    if not gate_open:
+        log.debug("outside kill zones (next opens %s UTC) — observing only",
+                  kz_state.get("next_open_utc"))
     ref_pair = cfg.get("ict.smt_reference", "BTC/USDT")
     ref_15m = await market.candles(ref_pair, tf, 200)
     proposals: list[dict] = []
@@ -53,9 +59,12 @@ async def scan(market, ledger, bus, cfg, regime_snap: dict,
         }
         await snapshot_state(ledger, pair, sess, levels, zones, cfg.version_id)
 
+        if not gate_open:
+            continue  # kill-zone discipline: mark levels, take nothing
         p = ict_setup.detect(c15, ref_15m, sess, levels, entry, cfg)
         if not p:
             continue
+        p["evidence"]["killzone"] = kz_state
         p.update({
             "pair": pair, "setup_type": "ict", "side": "long",
             "regime_snapshot_id": regime_snap["id"],

@@ -69,6 +69,7 @@ class Supervisor:
             weekly_pnl_pct=100 * (self.equity - week0) / week0 if week0 else 0,
             halted=self.halt_until is not None
                    and datetime.now(timezone.utc) < self.halt_until,
+            atr_percentile=(self.latest_regime or {}).get("atr_percentile"),
         )
 
     # ---- module loops ----
@@ -145,6 +146,32 @@ class Supervisor:
             except Exception as e:  # noqa: BLE001
                 log.warning("price loop failed: %s", e)
             await asyncio.sleep(60)
+
+    async def news_loop(self, session):
+        """Binance announcement monitoring — data + alerts, never a signal."""
+        from .data import news
+        if not self.cfg.get("news.enabled", True):
+            return
+        interval = self.cfg.get("news.poll_minutes", 30) * 60
+        seen: set[str] = set()
+        first = True
+        while True:
+            try:
+                bases = {p["pair"].split("/")[0].upper()
+                         for p in (await self.account_state()).open_positions}
+                for e in ((self.latest_watchlist or {}).get("entries") or []):
+                    bases.add(e["pair"].split("/")[0].upper())
+                if first:
+                    # baseline pass: mark the current page as seen without
+                    # alerting on stale articles from before startup
+                    for a in await news.fetch_articles(session):
+                        seen.add(str(a.get("code") or (a.get("title") or "")[:60]))
+                    first = False
+                else:
+                    await news.check(session, self.bus, bases, seen, notify.send)
+            except Exception as e:  # noqa: BLE001
+                log.warning("news loop failed: %s", e)
+            await asyncio.sleep(interval)
 
     async def coach_loop(self):
         last_daily = last_weekly = None
@@ -225,6 +252,7 @@ async def main(cli_confirmed_live: bool = False):
         asyncio.create_task(sup.analyst_loop()),
         asyncio.create_task(sup.price_loop()),
         asyncio.create_task(sup.coach_loop()),
+        asyncio.create_task(sup.news_loop(sess)),
         asyncio.create_task(kline_stream(r, symbols, tfs=("15m", "1h"))),
         asyncio.create_task(derivatives_overlay(r, rest, symbols)),
     ]

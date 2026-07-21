@@ -73,6 +73,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <a href="/">Live</a>
           <a href="/ledger">Ledger</a>
           <a href="/performance">Performance</a>
+          <a href="/memos">Memos</a>
           <a href="/config">Config</a>
         </nav>
         <main>{children}</main>

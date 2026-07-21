@@ -114,6 +114,7 @@ async def live():
             """)
     # setup trust — what the ledger currently thinks of each setup
     setup_trust = {}
+    cfg = None
     try:
         from .ledger import PgLedger
         from .modules import expectancy
@@ -122,6 +123,40 @@ async def live():
             setup_trust = await expectancy.setup_expectancy(PgLedger(db.pool()), cfg)
     except Exception:  # noqa: BLE001
         setup_trust = {}
+
+    # kill-zone clock + automated pre-session checklist (the mechanical
+    # version of "5 signs you will lose today" — human factors excluded)
+    killzone = None
+    checklist = None
+    try:
+        from datetime import datetime, timezone
+        from . import notify
+        from .modules.ict import killzone as kz
+        if cfg is None and config_mod.DEFAULT_PATH.exists():
+            cfg = config_mod.load()
+        if cfg:
+            killzone = {**kz.state(datetime.now(timezone.utc), cfg),
+                        "enabled": kz.enabled(cfg)}
+        ict_rows = _rows(ict)
+        first_ict = ict_rows[0] if ict_rows else {}
+        sess = (first_ict.get("session_state") or {})
+        lv = (first_ict.get("levels") or {})
+        async with db.pool().acquire() as con:
+            bad_news = await con.fetchval(
+                "SELECT COUNT(*) FROM events WHERE type = 'news.announcement' "
+                "AND payload::text LIKE '%delisting%' "
+                "AND ts > now() - interval '24 hours'")
+        checklist = {
+            "bias_set": bool(regime and regime["btc_state"]),
+            "asian_range_marked": (sess.get("asia") or {}).get("high") is not None,
+            "key_levels_marked": lv.get("pdh") is not None,
+            "news_clear": not bad_news,
+            "alerts_ready": notify.configured(),
+            "killzone_timing": bool(killzone and
+                                    (killzone["active"] or not killzone["enabled"])),
+        }
+    except Exception:  # noqa: BLE001
+        pass
     return {"regime": _rows([regime])[0] if regime else None,
             "watchlist": _rows([watchlist])[0] if watchlist else None,
             "open_positions": _rows(positions),
@@ -129,7 +164,9 @@ async def live():
             "paper_readiness": dict(readiness) if readiness else None,
             "equity": dict(equity) if equity else None,
             "ict": _rows(ict),
-            "setup_trust": setup_trust}
+            "setup_trust": setup_trust,
+            "killzone": killzone,
+            "checklist": checklist}
 
 
 @app.get("/api/ledger", dependencies=[Depends(require_session)])
@@ -198,11 +235,26 @@ async def activity(limit: int = 20):
             summary = f"{pr.get('pair')}: {', '.join(p.get('reasons') or [])}"
         elif t == "executor.opened":
             summary = f"{p.get('pair')} position opened ({p.get('mode')})"
+        elif t == "decision.memo":
+            summary = f"{p.get('status')}: {p.get('pair')} {p.get('setup_type')}"
+        elif t == "news.announcement":
+            summary = f"[{p.get('category')}] {(p.get('title') or '')[:70]}"
         else:
             summary = t
         out.append({"ts": r["ts"], "module": r["module"], "type": t,
                     "summary": summary})
     return out
+
+
+@app.get("/api/memos", dependencies=[Depends(require_session)])
+async def memos(limit: int = 30):
+    """Decision memos — the final-verdict feed (APPROVED / WATCHLIST /
+    REJECTED per proposal), read back from the persisted event bus."""
+    async with db.pool().acquire() as con:
+        rows = await con.fetch(
+            f"SELECT ts, payload FROM events WHERE type = 'decision.memo' "
+            f"ORDER BY ts DESC LIMIT {min(limit, 100)}")
+    return [{"ts": r["ts"], **(r.get("payload") or {})} for r in _rows(rows)]
 
 
 @app.get("/api/config", dependencies=[Depends(require_session)])
