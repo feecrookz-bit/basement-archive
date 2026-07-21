@@ -1,5 +1,6 @@
 services:
   db:
+    restart: unless-stopped
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: tracker
@@ -14,6 +15,7 @@ services:
       retries: 10
 
   app:
+    restart: unless-stopped
     build: .
     env_file: .env
     environment:
