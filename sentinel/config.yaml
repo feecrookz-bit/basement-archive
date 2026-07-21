@@ -1,0 +1,145 @@
+# =============================================================================
+# SENTINEL config.yaml — every threshold lives here; nothing is hardcoded.
+# Loaded at startup; each load is snapshotted into config_versions and every
+# trade references the version that produced it.
+# =============================================================================
+
+mode:
+  live: false                    # PAPER IS THE DEFAULT. Flipping this alone does nothing:
+  # live trading additionally requires BOTH of:
+  #   1. CLI flag at startup:  sentinel run --confirm-live-i-accept-losses
+  #   2. v_paper_readiness.ready = true  (>= 30 distinct days of logged paper trades)
+  # The gate is enforced in code (executor refuses live orders otherwise) — all three
+  # locks are independent and all must be open.
+  min_paper_days: 30
+
+exchange:
+  id: binance
+  market: spot                   # futures module exists but is stubbed + disabled
+  futures_enabled: false
+  # keys come from env, never from this file: BINANCE_API_KEY / BINANCE_API_SECRET
+  quote_asset: USDT
+
+fees_and_fills:                  # paper fill model — honest costs or the ledger is fiction
+  taker_fee_pct: 0.10
+  slippage:
+    model: spread_plus_impact    # fill = touch price +/- (half_spread + impact)
+    base_impact_bps: 5
+    impact_per_10k_usd_bps: 1    # scales with order notional
+
+event_bus:
+  redis_url: redis://redis:6379/0
+  persist_all_events: true       # every bus message also appended to events table
+
+# -----------------------------------------------------------------------------
+regime:                          # module 1 — the tide-reader (refresh: 5 min)
+  refresh_minutes: 5
+  timeframes: ["1h", "4h"]
+  emas: [20, 50, 200]
+  atr_percentile_lookback_days: 30
+  states_allowing_entries: ["RANGING", "TRENDING_UP_EARLY"]
+  # TRENDING_UP is split: "early" = price above rising 20/50 EMA but < x ATR extended;
+  # late-trend chasing is not an allowed entry state.
+  trending_up_early_max_atr_extension: 2.0
+  kill:
+    btc_1h_move_pct: 3.0         # abs move > this => halt new entries, tighten stops
+    tighten_stops_to_r: 0.5      # open positions: stop pulled to max(current, entry - 0.5R)
+    funding_extreme_percentile: 95   # top perps funding above this pctile => "crowded" flag
+  volatile_chop_mandatory_flat: true
+
+# -----------------------------------------------------------------------------
+scout:                           # module 2 — the scanner (refresh: 15 min)
+  refresh_minutes: 15
+  universe:
+    min_24h_volume_usd: 20_000_000
+    max_spread_pct: 0.15
+    exclude: ["USDC/USDT", "FDUSD/USDT", "TUSD/USDT"]   # stables aren't trades
+  relative_strength:
+    windows_hours: [4, 24, 72]
+    weights: [0.5, 0.3, 0.2]     # recent strength matters most
+    higher_lows_vs_btc_bonus: 0.15
+  top_n: 15
+  unlocks:
+    source: csv                  # csv | api  (api adapter is config-pluggable)
+    csv_path: data/unlocks.csv   # columns: symbol,unlock_at,supply_pct
+    blacklist_supply_pct: 1.0    # >1% unlock within window => no longs
+    window_days: 7
+  derivatives_overlay:           # data only — flags, never signals
+    funding_extreme_percentile: 95
+    oi_spike_pct: 15             # OI +15% with price < +2% => "move loading" flag
+    oi_flat_price_band_pct: 2
+
+# -----------------------------------------------------------------------------
+analyst:                         # module 3 — exactly three setups, no more
+  candle_tf: "1h"
+  setups:
+    range_play:
+      enabled: true
+      min_touches_per_side: 3
+      min_range_age_hours: 48
+      entry_buffer_pct: 0.3      # limit at range_low * (1 + buffer)
+      invalidation: close_below_range_low
+      target: range_high
+    breakout_retest:
+      enabled: true
+      resistance_lookback_days: 3     # "multi-day" resistance
+      breakout_volume_mult: 2.0       # vs average candle volume
+      retest_window_hours: 24
+      entry: retest_hold_1h_close_above_level
+      never_buy_breakout_candle: true # HARD invariant, enforced in code + tested
+      invalidation: 1h_close_below_level
+    rs_momentum:
+      enabled: true
+      rs_decile_min: 10          # top decile only
+      pullback_ema: 20
+      require_structure: higher_highs_and_lows
+      stochrsi_reset_below: 20
+      entry: ema_reclaim_1h_close
+      invalidation: structure_low_break
+
+# -----------------------------------------------------------------------------
+risk:                            # module 4 — the veto; proposals propose, risk disposes
+  risk_per_trade_pct: 0.75       # size = equity * this / (entry - stop). Stop drives size.
+  max_concurrent_positions: 3
+  max_total_open_risk_pct: 2.0
+  max_positions_per_sector: 1
+  sectors:                       # simple correlation map; extend freely
+    L1: ["SOL", "AVAX", "ADA", "NEAR", "APT", "SUI"]
+    L2: ["ARB", "OP", "STRK", "MATIC"]
+    AI: ["FET", "RNDR", "TAO", "WLD"]
+    DEFI: ["UNI", "AAVE", "MKR", "LDO"]
+    MEME: ["DOGE", "SHIB", "PEPE", "WIF", "BONK"]
+  circuit_breakers:
+    daily_loss_pct: 2.0          # => flatten all, no entries 24h, halt logged
+    daily_halt_hours: 24
+    weekly_loss_pct: 5.0         # => halt until manual restart WITH typed reason (logged)
+  overtrading_governor:
+    max_new_entries_per_24h: 4
+  # No martingale, no averaging down, no doubling after losses — not configurable,
+  # not implemented, refuse if asked.
+
+# -----------------------------------------------------------------------------
+executor:                        # module 5a — mechanical exits only, no dashboard overrides
+  exit_ladder:
+    - { at_r: 1.5, sell_pct: 50, then: move_stop_to_breakeven }
+    - { at_r: 2.5, sell_pct: 25 }
+  trail_remainder:
+    method: swing_low
+    tf: "1h"
+    swing_lookback_candles: 10
+
+coach:                           # module 5b — the feedback loop that matters
+  daily_report_utc: "00:10"
+  weekly_report: { day: monday, utc: "00:30" }
+  metrics: [win_rate, avg_r, expectancy, profit_factor, max_drawdown,
+            by_setup, by_regime, by_pair, rejected_proposal_review]
+
+dashboard:
+  mode_banner: unmissable        # PAPER = amber, LIVE = red, always visible
+  pages: [live, ledger, performance, config]
+  config_page: read_only
+
+ingestion:
+  klines_ws: true                # Binance websocket klines
+  rest_backfill_days: 14
+  redis_state_ttl_seconds: 900

@@ -1,90 +1,26 @@
-name: basement
-
 services:
-  postgres:
-    image: postgis/postgis:16-3.4
-    container_name: basement-postgres
-    restart: unless-stopped
+  db:
+    image: postgres:16-alpine
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-basement}
-      POSTGRES_USER: ${POSTGRES_USER:-basement}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-basement_dev}
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: tracker
+      POSTGRES_PASSWORD: tracker
+      POSTGRES_DB: tracker
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./infra/postgres/initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U tracker"]
       interval: 5s
-      timeout: 5s
+      timeout: 3s
       retries: 10
 
-  minio:
-    image: minio/minio:latest
-    container_name: basement-minio
-    restart: unless-stopped
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-basement}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-basement_dev_secret}
+  app:
+    build: .
+    env_file: .env
     ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - miniodata:/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 10s
-      timeout: 5s
-      retries: 6
-
-  minio-bootstrap:
-    image: minio/mc:latest
+      - "8000:8000"
     depends_on:
-      minio:
+      db:
         condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-      mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} &&
-      mc mb -p local/bargrid-tiles local/inventory-media local/audit-archive || true &&
-      mc anonymous set download local/bargrid-tiles
-      "
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-basement}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-basement_dev_secret}
-    restart: "no"
-
-  backend:
-    build: ./backend
-    container_name: basement-backend
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-basement}:${POSTGRES_PASSWORD:-basement_dev}@postgres:5432/${POSTGRES_DB:-basement}?schema=public
-      S3_ENDPOINT: http://minio:9000
-      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-basement}
-      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-basement_dev_secret}
-      S3_BUCKET_TILES: bargrid-tiles
-      S3_BUCKET_MEDIA: inventory-media
-      S3_BUCKET_AUDIT: audit-archive
-      SYNC_TOKEN: ${SYNC_TOKEN:-dev-sync-token-change-me}
-      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-me-at-least-16-chars}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-12h}
-      RATE_LIMIT_PER_MIN: ${RATE_LIMIT_PER_MIN:-600}
-      NODE_ENV: development
-      PORT: 4000
-    ports:
-      - "4000:4000"
-    volumes:
-      - ./backend:/app
-      - backend_node_modules:/app/node_modules
 
 volumes:
   pgdata:
-  miniodata:
-  backend_node_modules:

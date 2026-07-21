@@ -1,0 +1,5 @@
+symbol,unlock_at,supply_pct
+# Stub unlock calendar. Replace with a real data source (config: scout.unlocks)
+# or maintain manually. Example rows (dates in the past are ignored):
+ARB,2026-01-16T13:00:00Z,2.1
+APT,2026-01-12T00:00:00Z,1.8
