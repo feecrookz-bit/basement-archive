@@ -18,7 +18,8 @@ DISCOVERY_CHAINS = [
 
 # --- Wallets (Helius / Solana) ---
 HELIUS_API_KEY = os.getenv("HELIUS_API_KEY", "")
-WALLET_MODE = os.getenv("WALLET_MODE", "ws").strip().lower()           # ws | webhook | off
+WALLET_MODE = os.getenv("WALLET_MODE", "ws").strip().lower()   # ws | webhook | poll | off
+WALLET_POLL_SECONDS = int(os.getenv("WALLET_POLL_SECONDS", "45"))  # poll mode cadence
 HELIUS_WS_URL = os.getenv("HELIUS_WS_URL", "wss://atlas-mainnet.helius-rpc.com")
 HELIUS_RPC_URL = os.getenv(
     "HELIUS_RPC_URL", "https://mainnet.helius-rpc.com"

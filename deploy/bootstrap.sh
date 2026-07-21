@@ -84,9 +84,9 @@ elif [ -n "${WEBHOOK_PUBLIC_URL:-}" ]; then
   sed -i.bak "s|^WEBHOOK_PUBLIC_URL=.*|WEBHOOK_PUBLIC_URL=${WEBHOOK_PUBLIC_URL}|" .env && rm -f .env.bak
   echo "deploy: WEBHOOK_PUBLIC_URL=${WEBHOOK_PUBLIC_URL}"
 else
-  echo "deploy: NOTE — no public URL configured; the tracker runs but the"
-  echo "  Helius webhook (wallet signals) cannot be registered. Re-run with"
-  echo "  --quick-tunnel or WEBHOOK_PUBLIC_URL=... when ready."
+  echo "deploy: no public URL — fine: the default WALLET_MODE=poll collects"
+  echo "  wallet signals outbound-only (no tunnel needed). Use --quick-tunnel"
+  echo "  or WEBHOOK_PUBLIC_URL=... only if you switch to WALLET_MODE=webhook."
 fi
 
 # ---- 4. tracker stack --------------------------------------------------------
