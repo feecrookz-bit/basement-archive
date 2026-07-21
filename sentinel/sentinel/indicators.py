@@ -122,6 +122,22 @@ def pivots(candles: list[dict], strength: int = 2) -> tuple[list[float], list[fl
     return highs, lows
 
 
+def pivot_points(candles: list[dict], strength: int = 2
+                 ) -> tuple[list[tuple[int, float]], list[tuple[int, float]]]:
+    """Like pivots() but keeps candle indices: ([(idx, high)], [(idx, low)]).
+    Consecutive equal-value pivots are deduplicated the same way."""
+    highs: list[tuple[int, float]] = []
+    lows: list[tuple[int, float]] = []
+    for i in range(strength, len(candles) - strength):
+        window = candles[i - strength: i + strength + 1]
+        h, l = candles[i]["high"], candles[i]["low"]
+        if h == max(c["high"] for c in window) and (not highs or highs[-1][1] != h):
+            highs.append((i, h))
+        if l == min(c["low"] for c in window) and (not lows or lows[-1][1] != l):
+            lows.append((i, l))
+    return highs, lows
+
+
 def higher_highs_lows(candles: list[dict], strength: int = 2) -> bool:
     """Uptrend structure: last two pivot highs AND last two pivot lows ascending."""
     highs, lows = pivots(candles, strength)

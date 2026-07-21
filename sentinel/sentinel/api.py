@@ -65,12 +65,20 @@ async def live():
         readiness = await con.fetchrow("SELECT * FROM v_paper_readiness")
         equity = await con.fetchrow(
             "SELECT equity, mode, ts FROM equity_snapshots ORDER BY ts DESC LIMIT 1")
+        ict = await con.fetch(
+            """
+            SELECT DISTINCT ON (pair) pair, ts, session_state, levels, zones
+            FROM ict_snapshots
+            WHERE ts > now() - interval '2 hours'
+            ORDER BY pair, ts DESC
+            """)
     return {"regime": _rows([regime])[0] if regime else None,
             "watchlist": _rows([watchlist])[0] if watchlist else None,
             "open_positions": _rows(positions),
             "recent_halts": _rows(halts),
             "paper_readiness": dict(readiness) if readiness else None,
-            "equity": dict(equity) if equity else None}
+            "equity": dict(equity) if equity else None,
+            "ict": _rows(ict)}
 
 
 @app.get("/api/ledger")

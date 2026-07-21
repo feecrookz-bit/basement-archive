@@ -169,6 +169,20 @@ CREATE TABLE IF NOT EXISTS halt_events (
     detail   JSONB                        -- {equity_drop_pct, trigger_snapshot_id, ...}
 );
 
+-- ---------- ICT AGENT ---------------------------------------------------------
+-- Per-pair ICT map (sessions, PDH/PDL, fresh FVG/OB zones) — read model for
+-- the dashboard; proposal evidence remains the audit source of truth.
+CREATE TABLE IF NOT EXISTS ict_snapshots (
+    id                BIGSERIAL PRIMARY KEY,
+    ts                TIMESTAMPTZ NOT NULL DEFAULT now(),
+    pair              TEXT NOT NULL,
+    session_state     JSONB NOT NULL,
+    levels            JSONB NOT NULL,
+    zones             JSONB NOT NULL,
+    config_version_id BIGINT REFERENCES config_versions(id)
+);
+CREATE INDEX IF NOT EXISTS idx_ict_snap ON ict_snapshots (pair, ts DESC);
+
 -- ---------- COACH -------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS coach_reports (
     id        BIGSERIAL PRIMARY KEY,

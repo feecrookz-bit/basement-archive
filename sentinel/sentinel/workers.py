@@ -207,7 +207,7 @@ async def main(cli_confirmed_live: bool = False):
         asyncio.create_task(sup.analyst_loop()),
         asyncio.create_task(sup.price_loop()),
         asyncio.create_task(sup.coach_loop()),
-        asyncio.create_task(kline_stream(r, symbols)),
+        asyncio.create_task(kline_stream(r, symbols, tfs=("15m", "1h"))),
         asyncio.create_task(derivatives_overlay(r, rest, symbols)),
     ]
     try:

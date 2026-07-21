@@ -25,6 +25,14 @@ async def scan(market, ledger, bus, cfg, regime_snap: dict,
         return []
     tf = cfg.get("analyst.candle_tf", "1h")
     proposals = []
+
+    # ICT agent (setup class #4): needs market access for the SMT reference
+    # and day levels, so it runs as its own async pass rather than through
+    # the pure single-input detector map below.
+    if cfg.get("ict.enabled", True):
+        from .. import ict
+        proposals.extend(await ict.scan(market, ledger, bus, cfg,
+                                        regime_snap, watchlist))
     for entry in watchlist.get("entries", []):
         if entry.get("flags", {}).get("unlock_blacklist"):
             continue  # no longs into a supply unlock
