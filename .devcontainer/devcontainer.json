@@ -12,6 +12,7 @@
     "3000": { "label": "sentinel dashboard" }
   },
   "postCreateCommand": "bash .devcontainer/setup.sh",
+  "postStartCommand": "bash .devcontainer/poststart.sh",
   "customizations": {
     "vscode": {
       "extensions": ["ms-python.python", "ms-azuretools.vscode-docker"]
