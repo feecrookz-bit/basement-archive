@@ -1,14 +1,17 @@
 {
-  "name": "memecoin-tracker",
+  "name": "crypto-monorepo",
   "image": "mcr.microsoft.com/devcontainers/python:3.12",
   "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/node:1": { "version": "20" }
   },
-  "forwardPorts": [8000],
+  "forwardPorts": [8000, 8080, 3000],
   "portsAttributes": {
-    "8000": { "label": "tracker dashboard", "onAutoForward": "openPreview" }
+    "8000": { "label": "tracker dashboard", "onAutoForward": "openPreview" },
+    "8080": { "label": "sentinel api" },
+    "3000": { "label": "sentinel dashboard" }
   },
-  "postCreateCommand": "cp -n .env.example .env || true",
+  "postCreateCommand": "cp -n .env.example .env || true; cp -n sentinel/.env.example sentinel/.env || true",
   "customizations": {
     "vscode": {
       "extensions": ["ms-python.python", "ms-azuretools.vscode-docker"]
