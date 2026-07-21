@@ -2,7 +2,8 @@
 
 > This repo also contains **[Sentinel](sentinel/)** (Binance altcoin
 > day-trading engine, paper-default). Accounts, keys, and running costs for
-> both systems: **[RUNBOOK.md](RUNBOOK.md)**.
+> both systems: **[RUNBOOK.md](RUNBOOK.md)**. Full build & strategy docs:
+> **[docs/wiki/](docs/wiki/Home.md)**.
 
 Discovery (DEX Screener) × wallet tracking (Helius/Solana), with the three
 layers that separate a working operation from a toy: **rug gates**, **wallet
