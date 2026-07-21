@@ -1,11 +1,12 @@
-"""Read API for the dashboard. Read-heavy, no write endpoints — the engine
-has no discretionary override surface by design."""
+"""Read API for the dashboard. Read-heavy; the only write surface is
+sign-in/sign-out — the engine still has no discretionary override buttons."""
 import contextlib
 import json
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
+from . import auth
 from . import config as config_mod
 from . import db
 
@@ -16,9 +17,43 @@ async def lifespan(_app):
     yield
     await db.close()
 
+
+def require_session(request: Request) -> None:
+    """401 unless auth is disabled or a valid session cookie is present."""
+    if not auth.enabled():
+        return
+    if not auth.verify(request.cookies.get(auth.COOKIE_NAME)):
+        raise HTTPException(status_code=401, detail="sign in required")
+
+
 app = FastAPI(title="Sentinel API", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"],
-                   allow_headers=["*"])
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"],
+                   allow_headers=["*"], allow_credentials=True)
+
+
+@app.get("/api/auth/status")
+async def auth_status(request: Request):
+    return {"enabled": auth.enabled(),
+            "authenticated": (not auth.enabled())
+            or auth.verify(request.cookies.get(auth.COOKIE_NAME))}
+
+
+@app.post("/api/auth/login")
+async def login(request: Request, response: Response):
+    body = await request.json()
+    if not auth.enabled():
+        return {"ok": True, "note": "auth disabled"}
+    if not auth.check_password(str(body.get("password") or "")):
+        raise HTTPException(status_code=401, detail="wrong password")
+    response.set_cookie(auth.COOKIE_NAME, auth.sign(), httponly=True,
+                        samesite="lax", max_age=auth.DEFAULT_MAX_AGE, path="/")
+    return {"ok": True}
+
+
+@app.post("/api/auth/logout")
+async def logout(response: Response):
+    response.delete_cookie(auth.COOKIE_NAME, path="/")
+    return {"ok": True}
 
 
 def _rows(rows):
@@ -40,7 +75,7 @@ async def health():
     return {"ok": True}
 
 
-@app.get("/api/live")
+@app.get("/api/live", dependencies=[Depends(require_session)])
 async def live():
     async with db.pool().acquire() as con:
         regime = await con.fetchrow(
@@ -93,7 +128,7 @@ async def live():
             "setup_trust": setup_trust}
 
 
-@app.get("/api/ledger")
+@app.get("/api/ledger", dependencies=[Depends(require_session)])
 async def ledger(limit: int = 100):
     async with db.pool().acquire() as con:
         trades = await con.fetch(
@@ -121,7 +156,7 @@ async def ledger(limit: int = 100):
             "rejected": _rows(rejected)}
 
 
-@app.get("/api/performance")
+@app.get("/api/performance", dependencies=[Depends(require_session)])
 async def performance():
     async with db.pool().acquire() as con:
         reports = await con.fetch(
@@ -131,7 +166,42 @@ async def performance():
     return {"reports": _rows(reports), "equity_curve": _rows(equity)}
 
 
-@app.get("/api/config")
+@app.get("/api/activity", dependencies=[Depends(require_session)])
+async def activity(limit: int = 20):
+    """Recent bus events — the in-app activity feed. The bus already archives
+    everything to the events table; this is a typed read of the tail."""
+    async with db.pool().acquire() as con:
+        rows = await con.fetch(
+            f"SELECT ts, module, type, payload FROM events "
+            f"ORDER BY ts DESC LIMIT {min(limit, 100)}")
+    out = []
+    for r in _rows(rows):
+        p = r.get("payload") or {}
+        t = r["type"]
+        if t == "regime.tick":
+            summary = f"{p.get('btc_state')} · entries " + \
+                      ("permitted" if p.get("trading_allowed") else "blocked")
+        elif t == "scout.watchlist":
+            summary = f"{len(p.get('entries') or [])} pairs ranked"
+        elif t == "analyst.proposal":
+            summary = f"{p.get('setup_type')} on {p.get('pair')}"
+        elif t == "risk.accepted":
+            pr = p.get("proposal") or {}
+            summary = f"{pr.get('pair')} accepted " \
+                      f"(risk {((p.get('sizing') or {}).get('risk_pct'))}%)"
+        elif t == "risk.rejected":
+            pr = p.get("proposal") or {}
+            summary = f"{pr.get('pair')}: {', '.join(p.get('reasons') or [])}"
+        elif t == "executor.opened":
+            summary = f"{p.get('pair')} position opened ({p.get('mode')})"
+        else:
+            summary = t
+        out.append({"ts": r["ts"], "module": r["module"], "type": t,
+                    "summary": summary})
+    return out
+
+
+@app.get("/api/config", dependencies=[Depends(require_session)])
 async def config_view():
     async with db.pool().acquire() as con:
         versions = await con.fetch(

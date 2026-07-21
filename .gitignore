@@ -5,3 +5,5 @@ pgdata/
 node_modules/
 .next/
 .pytest_cache/
+sentinel/e2e/test-results/
+sentinel/e2e/playwright-report/

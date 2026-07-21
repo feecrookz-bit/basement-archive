@@ -111,3 +111,5 @@ async def run_report(pool, ledger, period: str = "daily") -> None:
     metrics, narrative = build_report(trades, rejected, period)
     await ledger.insert_report(period, since, now, metrics, narrative)
     log.info("coach %s report: %s", period, narrative)
+    from .. import notify
+    await notify.send(title=f"🧭 Coach {period} report", body=narrative)
