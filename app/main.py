@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import (binance, config, db, discovery, helius_webhooks, paper, pumpfun,
-               rotation, signals, wallets)
+               rotation, signals, wallet_quality, wallets)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 log = logging.getLogger("main")
@@ -29,6 +29,8 @@ async def lifespan(_app: FastAPI):
         _tasks.append(asyncio.create_task(binance.run()))
     if config.ROTATION_ENABLED:
         _tasks.append(asyncio.create_task(rotation.run()))
+    if config.WALLET_QUALITY_ENABLED:
+        _tasks.append(asyncio.create_task(wallet_quality.run()))
     if config.PUMPFUN_ENABLED:
         _tasks.append(asyncio.create_task(pumpfun.run()))
         _tasks.append(asyncio.create_task(pumpfun.reclaim_monitor()))

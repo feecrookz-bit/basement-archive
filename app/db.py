@@ -106,6 +106,12 @@ CREATE TABLE IF NOT EXISTS binance_events (
     UNIQUE (token_address, event_type, title)
 );
 
+-- v2.4: wallet quality classification (auto-mute un-shadowable bots)
+ALTER TABLE tracked_wallets ADD COLUMN IF NOT EXISTS classification TEXT;
+ALTER TABLE tracked_wallets ADD COLUMN IF NOT EXISTS trades_per_day DOUBLE PRECISION;
+ALTER TABLE tracked_wallets ADD COLUMN IF NOT EXISTS median_gap_min DOUBLE PRECISION;
+ALTER TABLE tracked_wallets ADD COLUMN IF NOT EXISTS quality_checked_at TIMESTAMPTZ;
+
 -- v2.3: BTC dominance snapshots for the Method-6 rotation overlay
 CREATE TABLE IF NOT EXISTS market_rotation (
     id             BIGSERIAL PRIMARY KEY,

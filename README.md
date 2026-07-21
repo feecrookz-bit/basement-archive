@@ -58,12 +58,24 @@ slippage, the wallet list isn't good enough yet — that's the answer working
 as intended, and it cost nothing.
 
 ## Curating the wallet list (this IS the product)
-The system is only as good as the wallets in `tracked_wallets`. Sources the
-experienced crowd uses: top-trader tabs on Birdeye/GMGN for tokens that
-already ran, then verify each wallet's history yourself before adding.
-Prune ruthlessly — the weight mechanism helps, but deleting beats muting.
-Beware *bundled* wallets (one operator, many addresses): confluence from
-wallets that always buy within the same block is one buyer, not five.
+The system is only as good as the wallets in `tracked_wallets`. **Do not
+start from a PnL leaderboard** — on-chain vetting (see
+[docs/WALLETS.md](docs/WALLETS.md)) found that the top Solana PnL wallets
+are almost all high-frequency bots (hundreds–thousands of sub-minute trades
+a day) that no follower system can shadow. You want **accumulators**: a few
+trades a day, holds measured in minutes-to-hours. Verify every candidate
+before adding:
+
+```bash
+HELIUS_API_KEY=... python scripts/vet_wallets.py "name:ADDRESS" ...
+```
+
+The tracker also self-defends: `app/wallet_quality.py` re-vets every
+tracked wallet on a schedule and **auto-mutes bots** (weight → 0.25 floor),
+surfacing the classification on `/api/wallets`. Still, prune ruthlessly —
+deleting a dead wallet beats muting it. Beware *bundled* wallets (one
+operator, many addresses): confluence from wallets that always buy within
+the same block is one buyer, not five.
 
 ## Modes
 - `DISCOVERY_MODE`: `poll` (official REST, default) | `ws` (spoofed-origin socket)

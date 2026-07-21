@@ -111,3 +111,11 @@ PUMPPORTAL_WS_URL = os.getenv("PUMPPORTAL_WS_URL", "wss://pumpportal.fun/api/dat
 GRAD_RECLAIM_WINDOW_HOURS = _f("GRAD_RECLAIM_WINDOW_HOURS", "24")  # stop watching after this
 GRAD_MIN_DUMP_PCT = _f("GRAD_MIN_DUMP_PCT", "20")  # dump depth before a reclaim counts
 GRAD_MONITOR_MAX = int(os.getenv("GRAD_MONITOR_MAX", "60"))  # price fetches per tick (rate-limit guard)
+
+# --- Wallet quality classifier (auto-mute un-shadowable bots) ---
+WALLET_QUALITY_ENABLED = os.getenv("WALLET_QUALITY_ENABLED", "true").lower() in {"1", "true", "yes"}
+WALLET_QUALITY_INTERVAL_HOURS = _f("WALLET_QUALITY_INTERVAL_HOURS", "6")
+WALLET_MAX_TRADES_PER_DAY = _f("WALLET_MAX_TRADES_PER_DAY", "60")     # above = bot
+WALLET_MIN_HOLD_MIN = _f("WALLET_MIN_HOLD_MIN", "3")                  # median gap below = bot
+WALLET_ACCUMULATOR_MAX_TPD = _f("WALLET_ACCUMULATOR_MAX_TPD", "8")    # calm cadence
+WALLET_ACCUMULATOR_MIN_GAP_MIN = _f("WALLET_ACCUMULATOR_MIN_GAP_MIN", "60")  # long holds
