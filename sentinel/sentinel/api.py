@@ -198,11 +198,26 @@ async def activity(limit: int = 20):
             summary = f"{pr.get('pair')}: {', '.join(p.get('reasons') or [])}"
         elif t == "executor.opened":
             summary = f"{p.get('pair')} position opened ({p.get('mode')})"
+        elif t == "decision.memo":
+            summary = f"{p.get('status')}: {p.get('pair')} {p.get('setup_type')}"
+        elif t == "news.announcement":
+            summary = f"[{p.get('category')}] {(p.get('title') or '')[:70]}"
         else:
             summary = t
         out.append({"ts": r["ts"], "module": r["module"], "type": t,
                     "summary": summary})
     return out
+
+
+@app.get("/api/memos", dependencies=[Depends(require_session)])
+async def memos(limit: int = 30):
+    """Decision memos — the final-verdict feed (APPROVED / WATCHLIST /
+    REJECTED per proposal), read back from the persisted event bus."""
+    async with db.pool().acquire() as con:
+        rows = await con.fetch(
+            f"SELECT ts, payload FROM events WHERE type = 'decision.memo' "
+            f"ORDER BY ts DESC LIMIT {min(limit, 100)}")
+    return [{"ts": r["ts"], **(r.get("payload") or {})} for r in _rows(rows)]
 
 
 @app.get("/api/config", dependencies=[Depends(require_session)])

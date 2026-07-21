@@ -21,6 +21,7 @@ class AccountState:
     daily_pnl_pct: float = 0.0
     weekly_pnl_pct: float = 0.0
     halted: bool = False
+    atr_percentile: float | None = None  # latest regime read; None = unknown
 
 
 def sector_of(pair: str, cfg) -> str | None:
@@ -79,6 +80,12 @@ def evaluate(proposal: dict, state: AccountState, cfg) -> dict:
     if state.entries_last_24h >= governor:
         reasons.append(f"overtrading_governor:{state.entries_last_24h}/24h")
 
+    # explicit volatility check — regime already gates states, but a spiking
+    # ATR percentile between regime ticks must not slip a new entry through
+    max_atr = cfg.get("risk.max_atr_percentile", 98)
+    if state.atr_percentile is not None and state.atr_percentile > max_atr:
+        reasons.append(f"volatility_extreme:{state.atr_percentile:.0f}pctile")
+
     sector = sector_of(proposal["pair"], cfg)
     per_sector = cfg.get("risk.max_positions_per_sector", 1)
     if sector:
@@ -126,9 +133,12 @@ def breaker_check(state: AccountState, cfg) -> dict | None:
 
 async def judge(proposal: dict, state: AccountState, ledger, bus, cfg) -> dict:
     """Evaluate, persist the decision, publish accepted proposals to executor."""
+    from . import memo as memo_mod
     verdict = evaluate(proposal, state, cfg)
     await ledger.insert_decision(proposal["id"], verdict["decision"],
                                  verdict["reject_reasons"], verdict["sizing"])
+    await bus.publish("risk", "decision.memo",
+                      memo_mod.compose(proposal, verdict, cfg))
     if verdict["decision"] == "rejected":
         log.info("REJECT #%s %s: %s", proposal["id"], proposal["pair"],
                  ", ".join(verdict["reject_reasons"]))

@@ -133,3 +133,20 @@ def test_conviction_never_breaks_concurrent_cap(cfg):
                  for i in range(3)]
     v = risk.evaluate(hi_conv, state(open_positions=positions), cfg)
     assert any(r.startswith("max_concurrent") for r in v["reject_reasons"])
+
+
+# ---- explicit volatility check (v3.2) ----
+def test_volatility_extreme_rejects(cfg):
+    v = risk.evaluate(proposal(), state(atr_percentile=99.0), cfg)
+    assert v["decision"] == "rejected"
+    assert any(r.startswith("volatility_extreme") for r in v["reject_reasons"])
+
+
+def test_volatility_below_threshold_passes(cfg):
+    v = risk.evaluate(proposal(), state(atr_percentile=60.0), cfg)
+    assert v["decision"] == "accepted"
+
+
+def test_volatility_unknown_never_blocks(cfg):
+    v = risk.evaluate(proposal(), state(atr_percentile=None), cfg)
+    assert v["decision"] == "accepted"

@@ -159,6 +159,8 @@ risk:                            # module 4 — the veto; proposals propose, ris
     weekly_loss_pct: 5.0         # => halt until manual restart WITH typed reason (logged)
   overtrading_governor:
     max_new_entries_per_24h: 4
+  max_atr_percentile: 98         # explicit volatility check: an ATR spike between
+  # regime ticks must not slip a new entry through (reject: volatility_extreme)
   # No martingale, no averaging down, no doubling after losses — not configurable,
   # not implemented, refuse if asked.
 
@@ -178,9 +180,14 @@ coach:                           # module 5b — the feedback loop that matters
   metrics: [win_rate, avg_r, expectancy, profit_factor, max_drawdown,
             by_setup, by_regime, by_pair, rejected_proposal_review]
 
+news:                            # announcement monitoring — data + alerts, never a signal
+  enabled: true
+  poll_minutes: 30               # delistings notify exit-now; launchpool/airdrop windows
+                                 # always notify; other news only if it touches our pairs
+
 dashboard:
   mode_banner: unmissable        # PAPER = amber, LIVE = red, always visible
-  pages: [live, ledger, performance, config]
+  pages: [live, ledger, performance, memos, config]
   config_page: read_only
 
 ingestion:

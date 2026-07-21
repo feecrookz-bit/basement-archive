@@ -67,6 +67,16 @@ test("Performance shows scoreboard and equity curve", async ({ page }) => {
   await expect(page.locator("svg path").first()).toBeVisible();
 });
 
+test("Memos page shows approved, watchlist and rejected verdicts", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/memos");
+  await expect(page.getByTestId("memo-card").first()).toBeVisible();
+  await expect(page.getByText("APPROVED — trade executed").first()).toBeVisible();
+  await expect(page.getByText("WATCHLIST — good setup, no capacity").first()).toBeVisible();
+  await expect(page.getByText("REJECTED — do not trade").first()).toBeVisible();
+  await expect(page.getByText("volatility_extreme:99pctile").first()).toBeVisible();
+});
+
 test("Config is read-only with version history", async ({ page }) => {
   await signIn(page);
   await page.goto("/config");
