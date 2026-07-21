@@ -59,6 +59,19 @@ This repo contains **two independent systems**, each with its own compose stack:
 
 ## 3 · Bring-up
 
+### VPS / home server (24/7 — the serious path)
+
+One command on any Docker-capable Linux box — see **[deploy/README.md](deploy/README.md)**:
+
+```bash
+git clone https://github.com/feecrookz-bit/basement-archive && cd basement-archive
+HELIUS_API_KEY=your-key bash deploy/bootstrap.sh --quick-tunnel
+```
+
+Installs Docker if needed, seeds env files, opens a free Cloudflare
+tunnel for the Helius webhook (named-tunnel overlay available for a
+stable URL), starts both stacks with restart policies, and prints status.
+
 ### Codespaces free-tier quickstart (Helius free plan, no VPS)
 
 1. **Helius account** (2 min, only step outside GitHub): sign up at

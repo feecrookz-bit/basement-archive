@@ -1,0 +1,20 @@
+# Overlay: named Cloudflare tunnel for a STABLE public webhook URL.
+#
+#   1. Cloudflare Zero Trust dashboard -> Networks -> Tunnels -> create tunnel
+#   2. Add a public hostname (e.g. tracker.yourdomain.com) -> service:
+#      http://app:8000
+#   3. Deploy with:
+#        HELIUS_API_KEY=... WEBHOOK_PUBLIC_URL=https://tracker.yourdomain.com \
+#          TUNNEL_TOKEN=eyJ... bash deploy/bootstrap.sh
+#      (or: TUNNEL_TOKEN=... docker compose -f docker-compose.yml \
+#           -f deploy/docker-compose.tunnel.yml up -d)
+#
+# cloudflared joins the compose network and reaches the app by service name —
+# no host ports are exposed to the internet at all.
+services:
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN}
+    depends_on:
+      - app
