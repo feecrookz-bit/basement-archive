@@ -15,7 +15,7 @@ This repo contains **two independent systems**, each with its own compose stack:
 
 | Account | Used by | Cost | What it unlocks / what breaks without it |
 |---|---|---|---|
-| **Helius** ([helius.dev](https://helius.dev)) | Tracker | Free tier exists; **paid plan (entry tier ≈ $49/mo) required for `WALLET_MODE=ws`** | The whole wallet-signal side. Free tier → use `WALLET_MODE=webhook` (needs a public URL) and you still get RPC for the safety gates (mint/freeze, top-10, holder counts). No key at all → discovery + gates degrade (mint/freeze/top-10/holders return unknown), wallet tracking off. |
+| **Helius** ([helius.dev](https://helius.dev)) | Tracker | Free tier is enough to start; **paid plan (≈ $49/mo) only for real-time `WALLET_MODE=ws`** | The whole wallet-signal side. Free tier: **`WALLET_MODE=poll` (default) — outbound-only, NO public URL needed, ~45 s latency, Enhanced-API parsing that sees terminal-vault trades** — or `webhook` (needs a public URL, near-real-time). No key at all → discovery + gates degrade, wallet tracking off. |
 | **GitHub** | both | Free | You have this. Codespaces free tier: ~120 core-hours/mo on personal accounts. |
 
 ### Not required (no account, no key)

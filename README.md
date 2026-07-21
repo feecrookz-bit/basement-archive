@@ -67,8 +67,11 @@ wallets that always buy within the same block is one buyer, not five.
 
 ## Modes
 - `DISCOVERY_MODE`: `poll` (official REST, default) | `ws` (spoofed-origin socket)
-- `WALLET_MODE`: `ws` (Helius Atlas, paid plan) | `webhook` (free tier, needs
-  public URL → `/webhooks/helius`) | `off`
+- `WALLET_MODE`: `poll` (free tier, **outbound-only — no public URL**;
+  getSignaturesForAddress + getTransaction through the same balance-delta
+  handler, ~`WALLET_POLL_SECONDS` latency) | `webhook` (free tier, needs a
+  public URL → `/webhooks/helius`) | `ws` (Helius Atlas, paid plan,
+  real-time) | `off`
 
 ## API
 `/api/discovery` · `/api/signals` · `/api/wallets` (POST/DELETE to manage) ·
