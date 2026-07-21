@@ -6,7 +6,7 @@ import pytest
 from sentinel.bus import Bus
 from sentinel.data.market import ReplayMarket
 from sentinel.ledger import MemoryLedger
-from sentinel.modules import analyst, risk
+from sentinel.modules import analyst, conviction, expectancy, risk
 from sentinel.modules.executor import Executor
 from tests.conftest import candle, sweep_displacement_series
 

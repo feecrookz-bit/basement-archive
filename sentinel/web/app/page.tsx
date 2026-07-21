@@ -18,6 +18,12 @@ function PositionCard({ p }: { p: any }) {
         <span className="muted">× {fmt(p.open_qty, 4)}</span>
         <Pill tone={p.mode === "live" ? "red" : "amber"}>{p.mode}</Pill>
         <span className="spacer" style={{ flex: 1 }} />
+        {p.evidence?.conviction != null && (
+          <Pill tone="amber">conv {fmt(p.evidence.conviction, 2)}</Pill>
+        )}
+        {Array.isArray(p.evidence?.agreeing_setups) && p.evidence.agreeing_setups.length > 1 && (
+          <Pill tone="green">×{p.evidence.agreeing_setups.length} confluence</Pill>
+        )}
         <Pill tone="blue">{p.setup_type}</Pill>
         {p.last_r != null && (
           <Pill tone={Number(p.last_r) >= 0 ? "green" : "red"}>
@@ -76,6 +82,25 @@ export default async function Live() {
           <p className="muted">no snapshot yet</p>
         )}
       </Section>
+
+      {data.setup_trust && Object.keys(data.setup_trust).length > 0 && (
+        <Section title="Setup trust — the ledger self-tuner">
+          <div className="stats">
+            {Object.entries(data.setup_trust).map(([setup, mult]: [string, any]) => (
+              <Stat
+                key={setup}
+                label={setup}
+                value={`${fmt(mult, 2)}×`}
+                tone={Number(mult) > 1.05 ? "green" : Number(mult) < 0.95 ? "red" : ""}
+              />
+            ))}
+          </div>
+          <p className="muted" style={{ marginBottom: 0 }}>
+            Conviction weight each setup has earned from its own realized R.
+            1.00× = neutral (cold start); winners rise, losers fade and get gated.
+          </p>
+        </Section>
+      )}
 
       <Section title="AutoTrader — open positions" tone="green">
         {(data.open_positions || []).map((p: any) => (

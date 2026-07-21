@@ -13,7 +13,7 @@ from . import config as config_mod
 from .bus import Bus
 from .data.market import ReplayMarket
 from .ledger import MemoryLedger
-from .modules import analyst, regime, risk
+from .modules import analyst, conviction, expectancy, regime, risk
 from .modules.coach import build_report, metrics_from_trades
 from .modules.executor import Executor
 
@@ -53,6 +53,8 @@ async def replay(cfg, series: dict[tuple[str, str], list[dict]],
         watchlist = {"id": wl_id, "entries": entries}
 
         proposals = await analyst.scan(market, ledger, bus, cfg, snap, watchlist)
+        exp = await expectancy.setup_expectancy(ledger, cfg)
+        proposals = conviction.rank(proposals, exp, cfg)
 
         entries_24h = [t for t in entries_24h if now_ms - t < 86_400_000]
         open_positions = [{"pair": st.pair, "sector": risk.sector_of(st.pair, cfg),

@@ -38,9 +38,14 @@ async def test_replay_runs_and_ledger_is_event_sourced(cfg):
     result = await replay(cfg, series, "ALT/USDT")
     led = result["ledger"]
 
-    # regime snapshots every step; proposals judged exactly once each
+    # regime snapshots every step. Conviction collapses multiple same-pair
+    # proposals into one judged primary, so decisions == distinct judged pairs
+    # (<= raw proposals persisted for audit), and every decision is on a real
+    # persisted proposal.
     assert led.regimes, "no regime snapshots recorded"
-    assert len(led.decisions) == len(led.proposals)
+    assert len(led.decisions) <= len(led.proposals)
+    proposal_ids = {p["id"] for p in led.proposals}
+    assert all(d["proposal_id"] in proposal_ids for d in led.decisions)
 
     if led.trades:  # trades only open when regime+setup+risk all align
         # every trade opened by an accepted decision, mode=backtest

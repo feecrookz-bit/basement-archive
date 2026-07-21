@@ -42,6 +42,21 @@ def size_position(equity: float, risk_pct: float, entry: float, stop: float) -> 
             "equity_at_decision": equity}
 
 
+def conviction_risk_pct(conviction: float | None, cfg) -> float:
+    """Scale base risk by conviction, bounded. Edge quality, not aggression:
+    the multiplier is clamped and the hard open-risk cap still governs, so a
+    high-conviction trade sizes up modestly while the average stays disciplined.
+    Conviction ~1.0 is neutral; the scale saturates at max_mult."""
+    base = cfg.get("risk.risk_per_trade_pct", 0.75)
+    if not cfg.get("conviction.sizing.enabled", True) or conviction is None:
+        return base
+    lo = cfg.get("conviction.sizing.min_mult", 0.8)
+    hi = cfg.get("conviction.sizing.max_mult", 1.5)
+    pivot = cfg.get("conviction.sizing.pivot", 1.5)  # conviction that maps to 1.0x
+    mult = max(lo, min(hi, conviction / pivot))
+    return round(base * mult, 4)
+
+
 def evaluate(proposal: dict, state: AccountState, cfg) -> dict:
     """Pure veto. Returns {decision, reject_reasons, sizing}."""
     reasons: list[str] = []
@@ -74,7 +89,7 @@ def evaluate(proposal: dict, state: AccountState, cfg) -> dict:
         reasons.append("already_in_pair")  # adding to a position = averaging; banned
 
     sizing = size_position(state.equity,
-                           cfg.get("risk.risk_per_trade_pct", 0.75),
+                           conviction_risk_pct(proposal.get("conviction"), cfg),
                            proposal["entry_price"], proposal["stop_price"])
     if sizing is None:
         reasons.append("invalid_entry_stop")

@@ -102,3 +102,34 @@ def test_no_averaging_down_same_pair(cfg):
 def test_halt_blocks_everything(cfg):
     v = risk.evaluate(proposal(), state(halted=True), cfg)
     assert "halt_active" in v["reject_reasons"]
+
+
+# ---- conviction sizing: scales within bounds, hard caps STILL veto ----
+def test_conviction_sizing_bounded(cfg):
+    base = cfg.get("risk.risk_per_trade_pct")
+    lo = cfg.get("conviction.sizing.min_mult")
+    hi = cfg.get("conviction.sizing.max_mult")
+    assert risk.conviction_risk_pct(None, cfg) == base          # no conviction -> base
+    assert risk.conviction_risk_pct(0.01, cfg) == round(base * lo, 4)  # floor
+    assert risk.conviction_risk_pct(999, cfg) == round(base * hi, 4)   # ceiling
+
+
+def test_high_conviction_sizes_up_but_caps_hold(cfg):
+    # a max-conviction proposal risks more per trade...
+    hi_conv = {**proposal(), "conviction": 99}
+    v = risk.evaluate(hi_conv, state(), cfg)
+    assert v["decision"] == "accepted"
+    assert v["sizing"]["risk_pct"] > cfg.get("risk.risk_per_trade_pct")
+    # ...but the 2% open-risk cap still vetoes when the book is already loaded
+    positions = [{"pair": "X/USDT", "sector": None, "risk_quote": 190.0}]
+    v2 = risk.evaluate(hi_conv, state(open_positions=positions), cfg)
+    assert v2["decision"] == "rejected"
+    assert any(r.startswith("max_open_risk") for r in v2["reject_reasons"])
+
+
+def test_conviction_never_breaks_concurrent_cap(cfg):
+    hi_conv = {**proposal(), "conviction": 99}
+    positions = [{"pair": f"P{i}/USDT", "sector": None, "risk_quote": 5}
+                 for i in range(3)]
+    v = risk.evaluate(hi_conv, state(open_positions=positions), cfg)
+    assert any(r.startswith("max_concurrent") for r in v["reject_reasons"])
