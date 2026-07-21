@@ -31,6 +31,7 @@
   <h1>📡 MEMECOIN TRACKER</h1>
   <span class="muted" id="status">connecting…</span>
   <span id="ledger" style="color:#7ee787"></span>
+  <span id="rotation" class="muted"></span>
   <span style="flex:1"></span>
   <input id="w" placeholder="wallet address" size="30" />
   <input id="l" placeholder="label" size="10" />
@@ -60,11 +61,18 @@ async function addWallet(){
 
 async function refresh(){
   try{
-    const [sig,disc,pap] = await Promise.all([
+    const [sig,disc,pap,rot] = await Promise.all([
       fetch('/api/signals?limit=40').then(r=>r.json()),
       fetch('/api/discovery?limit=60').then(r=>r.json()),
-      fetch('/api/paper?limit=1').then(r=>r.json())
+      fetch('/api/paper?limit=1').then(r=>r.json()),
+      fetch('/api/rotation').then(r=>r.json()).catch(()=>null)
     ]);
+    if (rot && rot.btc_dominance != null) {
+      const arrow = rot.state==='ALT_ROTATION' ? '↓' : rot.state==='RISK_OFF' ? '↑' : '→';
+      const col = rot.state==='ALT_ROTATION' ? '#7ee787' : rot.state==='RISK_OFF' ? '#ff6b6b' : '#6a7681';
+      $('rotation').innerHTML =
+        `BTC.D <span style="color:${col}">${rot.btc_dominance}% ${arrow} ${rot.state.replace('_',' ')}</span>`;
+    }
     const s = pap.summary || {};
     $('ledger').textContent = s.closed
       ? `LEDGER: ${s.net_sol>=0?'+':''}${s.net_sol} SOL · ${s.win_rate??'–'}% win · ${s.closed} closed / ${s.open} open` + (s.moonshot?.best_peak_x ? ` · 🌙 best ${s.moonshot.best_peak_x}x` : '')
