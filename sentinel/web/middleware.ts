@@ -21,8 +21,10 @@ async function authEnabled(): Promise<boolean> {
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  if (pathname.startsWith("/login") || pathname.startsWith("/_next") ||
-      pathname.startsWith("/favicon")) {
+  // /api/* is proxied to the backend (next.config.js rewrites) — the API
+  // does its own 401s, so never bounce those requests to /login.
+  if (pathname.startsWith("/login") || pathname.startsWith("/api") ||
+      pathname.startsWith("/_next") || pathname.startsWith("/favicon")) {
     return NextResponse.next();
   }
   if (!(await authEnabled())) return NextResponse.next();

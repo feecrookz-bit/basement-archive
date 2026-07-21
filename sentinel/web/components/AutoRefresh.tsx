@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+// Same-origin: /api/* is rewritten to the API by next.config.js.
+const API = "";
 
 export default function AutoRefresh({ intervalMs = 15000 }: { intervalMs?: number }) {
   const router = useRouter();

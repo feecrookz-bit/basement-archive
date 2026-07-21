@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+// Same-origin: /api/* is rewritten to the API by next.config.js, so the
+// session cookie is first-party and no CORS is involved.
+const API = "";
 
 export default function Login() {
   const [password, setPassword] = useState("");

@@ -27,8 +27,12 @@ def require_session(request: Request) -> None:
 
 
 app = FastAPI(title="Sentinel API", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"],
-                   allow_headers=["*"], allow_credentials=True)
+# The dashboard proxies /api/* same-origin (next.config.js rewrites), so CORS
+# only matters for direct-API setups. A wildcard origin is invalid for
+# credentialed requests — echo the caller's origin instead.
+app.add_middleware(CORSMiddleware, allow_origin_regex=".*",
+                   allow_methods=["GET", "POST"], allow_headers=["*"],
+                   allow_credentials=True)
 
 
 @app.get("/api/auth/status")
