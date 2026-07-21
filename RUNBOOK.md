@@ -59,6 +59,31 @@ This repo contains **two independent systems**, each with its own compose stack:
 
 ## 3 · Bring-up
 
+### Codespaces free-tier quickstart (Helius free plan, no VPS)
+
+1. **Helius account** (2 min, only step outside GitHub): sign up at
+   [helius.dev](https://helius.dev) → dashboard → copy your **API key**.
+   The free plan is enough for webhook mode + the RPC safety gates.
+2. **Create the Codespace**: repo page → Code → Codespaces → *Create
+   codespace on main*. The devcontainer seeds both `.env` files.
+3. **Add the key**: put `HELIUS_API_KEY=...` in `.env` (root).
+   `WALLET_MODE=webhook` is already the `.env.example` default.
+4. **Start the tracker**: `docker compose up --build` → dashboard opens on
+   port 8000.
+5. **Make port 8000 Public**: Ports panel → right-click 8000 → Port
+   Visibility → **Public**. Helius must be able to reach
+   `https://<codespace>-8000.app.github.dev/webhooks/helius`.
+6. **Add wallets** in the dashboard. The app now **registers/updates the
+   Helius webhook automatically** via their API (address list stays in
+   sync on every add/remove) — no dashboard fiddling on helius.dev.
+7. Optional, in a second terminal: `cd sentinel && docker compose up
+   --build` → Sentinel papers away on ports 3000/8080 (keyless).
+
+Codespaces caveats: the machine sleeps on idle (signals stop; webhook
+deliveries fail while asleep) and the public URL changes per codespace —
+the auto-sync fixes the webhook URL on next startup. Fine for evaluation;
+move to a VPS for 24/7.
+
 ### Tracker (repo root)
 ```bash
 cp .env.example .env        # add HELIUS_API_KEY; pick WALLET_MODE
