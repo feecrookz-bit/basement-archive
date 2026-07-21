@@ -66,7 +66,13 @@ This repo contains **two independent systems**, each with its own compose stack:
    The free plan is enough for webhook mode + the RPC safety gates.
 2. **Create the Codespace**: repo page → Code → Codespaces → *Create
    codespace on main*. The devcontainer seeds both `.env` files.
-3. **Add the key**: put `HELIUS_API_KEY=...` in `.env` (root).
+3. **Add the key** — either way works:
+   - *Recommended:* [github.com/settings/codespaces](https://github.com/settings/codespaces)
+     → New secret → name `HELIUS_API_KEY`, value = your key, repository
+     access = this repo. Every new Codespace injects it into `.env`
+     automatically (see `.devcontainer/setup.sh`).
+   - *Or* just paste `HELIUS_API_KEY=...` into `.env` in the Codespace.
+
    `WALLET_MODE=webhook` is already the `.env.example` default.
 4. **Start the tracker**: `docker compose up --build` → dashboard opens on
    port 8000.

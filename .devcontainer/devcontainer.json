@@ -11,7 +11,7 @@
     "8080": { "label": "sentinel api" },
     "3000": { "label": "sentinel dashboard" }
   },
-  "postCreateCommand": "cp -n .env.example .env || true; cp -n sentinel/.env.example sentinel/.env || true",
+  "postCreateCommand": "bash .devcontainer/setup.sh",
   "customizations": {
     "vscode": {
       "extensions": ["ms-python.python", "ms-azuretools.vscode-docker"]
